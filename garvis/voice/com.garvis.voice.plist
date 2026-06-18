@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Garvis voice daemon as a login-persistent LaunchAgent ("the app").
+     Install:
+       cp garvis/voice/com.garvis.voice.plist ~/Library/LaunchAgents/
+       launchctl load -w ~/Library/LaunchAgents/com.garvis.voice.plist
+     Stop / uninstall:
+       launchctl unload -w ~/Library/LaunchAgents/com.garvis.voice.plist
+     NOTE: first launch under launchd may need a one-time microphone permission grant
+     (System Settings -> Privacy & Security -> Microphone). If it stays silent, run it
+     once from Terminal to trigger the prompt, then load the agent. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.garvis.voice</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/path/to/garvis/.venv-voice/bin/python</string>
+    <string>-m</string>
+    <string>garvis.voice</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/path/to/garvis</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/path/to/garvis/logs/voice.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/path/to/garvis/logs/voice.err.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>
