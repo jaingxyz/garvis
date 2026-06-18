@@ -1,0 +1,40 @@
+# Garvis memory graph — copy to config/profile.yaml and edit.
+#   cp config/profile.example.yaml config/profile.yaml
+# config/profile.yaml is gitignored (it describes you and the people you correspond with).
+#
+# Garvis loads this into a small knowledge graph (entities + relations) each run and
+# injects a "who's who & your situation" summary into the classifier + prioritizer, so
+# triage understands relationships and what a message really means.
+
+self:
+  name: You
+  handles:
+    - you@example.com
+    - you-outlook@example.com
+  facts:
+    - relocating to a new city (summer)
+    - works at Acme Corp
+
+people:
+  - name: Alex
+    handle: partner@example.com
+    aliases: [Alex, partner]
+    role: family
+    relation: spouse            # self --spouse_of--> Alex
+    vip: true
+    context: My partner. We share a calendar — check it for joint events/appointments.
+
+  - name: Sam
+    handle: sam@example.com
+    aliases: [Sam]
+    role: family
+    relation: child             # self --parent_of--> Sam
+    vip: true
+    context: My kid. School logistics and anything from the school matter.
+
+  - name: Relocation Coordinator
+    handle: relocation@example.com
+    org: Acme Relocation
+    role: relocation
+    vip: true
+    context: Coordinator handling the move. Anything from them is high-stakes right now.

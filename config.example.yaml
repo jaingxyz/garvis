@@ -1,0 +1,90 @@
+# Garvis config — copy this to config.yaml and fill in your own values.
+#   cp config.example.yaml config.yaml
+# config.yaml is gitignored (it holds your personal addresses + paths).
+
+llm:
+  provider: ollama
+  model: qwen2.5:14b          # stronger instruction-following than 7b (date discipline, grouping)
+  base_url: http://localhost:11434
+  temperature: 0
+
+# Safety: when true, Garvis classifies and writes the digest but DELETES NOTHING.
+# Keep this true until you trust the classification, then flip to false.
+dry_run: true
+
+window_days: 3                # first run / fallback look-back window
+owner_gmail: you@example.com
+owner_outlook: you-outlook@example.com
+
+# Deterministic protection — items matching these are NEVER deleted, regardless of how
+# the LLM classifies them. (config/rules.md is the human-readable companion.)
+vip_senders:                  # threads with these senders are always kept
+  - partner@example.com
+  - work@example.com
+  - relocation@example.com
+protected_keywords:
+  # "receipt" intentionally NOT here — receipts are treated as deletable updates.
+  # One-time codes are handled by a time rule (otp_grace_minutes), not this list.
+  - invoice
+  - statement
+  - refund
+  - tax
+  - legal
+  - contract
+  - agreement
+  - lawsuit
+  - security alert
+  - password
+  - payroll
+  - offer letter
+  - visa
+  - passport
+  - mortgage
+  - escrow
+  - lease
+  - deposit
+  - docusign
+  - notary
+
+# One-time / verification codes are protected only while fresh; after this many minutes
+# they are expired noise and become deletable.
+otp_grace_minutes: 5
+
+scan_limits:
+  gmail: 60
+  outlook: 60
+  messages: 20
+
+# Local MCP servers, launched directly over stdio. Point args at wherever you cloned
+# each server. node_bin is optional — omit it to use `node` from your PATH, or set the
+# GARVIS_NODE_BIN env var.
+node_bin: node
+mcp_servers:
+  personal-gmail:
+    args: ["/path/to/personal-gmail-mcp/dist/index.js"]
+    env: {}
+  personal-outlook:
+    args: ["/path/to/personal-outlook-mcp/dist/index.js"]
+    env:
+      AZURE_CLIENT_ID: "YOUR_AZURE_CLIENT_ID"   # your Azure app registration client id
+      AZURE_TENANT: "consumers"
+  google-messages:
+    # Launches a Chromium profile; fails if that profile is already open elsewhere.
+    enabled: true
+    args: ["/path/to/google-messages-app/src/server.mjs"]
+    env:
+      GM_HEADLESS: "true"
+
+paths:
+  playbook: PLAYBOOK.md
+  rules: config/rules.md
+  state: state/last-run.json
+  digests: digests
+  db: state/garvis.db
+
+# Optional voice-daemon overrides (see garvis/voice/). All have sensible defaults.
+# voice:
+#   wake_model: tiny.en
+#   command_model: base.en
+#   tts_voice: Daniel
+#   wake_words: [garvis, jarvis]

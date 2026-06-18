@@ -1,0 +1,22 @@
+# --- Your config (copy from the .example files; never commit the real ones) ---
+config.yaml
+config/profile.yaml
+
+# --- Personal runtime data ---
+digests/
+state/
+logs/
+
+# --- Python environments / caches ---
+.venv/
+.venv-voice/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- OS / editor cruft ---
+.DS_Store
+*.swp
