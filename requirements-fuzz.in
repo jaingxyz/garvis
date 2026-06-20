@@ -1,0 +1,9 @@
+# Deps for the Atheris fuzz harness (fuzz/). Linux-only: atheris ships manylinux
+# wheels and is imported only by the fuzz job, which runs on ubuntu + Python 3.12.
+langchain>=0.3
+langchain-core>=0.3
+langchain-ollama>=0.2
+langchain-mcp-adapters>=0.1
+mcp>=1.0
+pyyaml>=6.0
+atheris>=3.1

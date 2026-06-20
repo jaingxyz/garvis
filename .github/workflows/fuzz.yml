@@ -1,0 +1,35 @@
+name: Fuzz
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  atheris:
+    name: Atheris (guards)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      # Hash-pinned (Scorecard Pinned-Dependencies). Regenerate with:
+      #   uv pip compile requirements-fuzz.in --python-platform x86_64-unknown-linux-gnu \
+      #     --python-version 3.12 --generate-hashes -o requirements-fuzz.txt
+      - name: Install (hash-pinned)
+        run: pip install --require-hashes -r requirements-fuzz.txt
+
+      # Bounded run so CI stays fast and deterministic; the weekly cron gives it more reps.
+      - name: Fuzz guards
+        run: python fuzz/fuzz_guards.py -atheris_runs=300000
+        env:
+          PYTHONPATH: .
