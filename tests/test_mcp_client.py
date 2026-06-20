@@ -1,9 +1,10 @@
 """Tests for mcp_client (per review: mocked Tools, connection)."""
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from garvis.mcp_client import Tools, connect
+import pytest
+
 from garvis.config import Config
+from garvis.mcp_client import Tools, connect
 
 
 @pytest.mark.asyncio

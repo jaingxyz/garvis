@@ -6,7 +6,7 @@ message id, so you can review or recover even after the digest is gone.
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 SCHEMA = """
@@ -86,7 +86,7 @@ _LABEL_STATUS = {"ACTIONABLE": "open", "WAITING": "waiting", "CONCLUDED": "done"
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).astimezone().isoformat()
+    return datetime.now(UTC).astimezone().isoformat()
 
 
 class Store:
@@ -262,8 +262,8 @@ class Store:
                 return False
             if db is None:
                 return True
-            da = da if da.tzinfo else da.replace(tzinfo=timezone.utc)
-            db = db if db.tzinfo else db.replace(tzinfo=timezone.utc)
+            da = da if da.tzinfo else da.replace(tzinfo=UTC)
+            db = db if db.tzinfo else db.replace(tzinfo=UTC)
             return da > db
 
         for it in items:

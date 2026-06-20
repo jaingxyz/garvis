@@ -17,7 +17,7 @@ class Config:
     root: Path = ROOT
 
     @classmethod
-    def load(cls, path: str | Path = "config.yaml") -> "Config":
+    def load(cls, path: str | Path = "config.yaml") -> Config:
         p = (ROOT / path) if not Path(path).is_absolute() else Path(path)
         return cls(raw=yaml.safe_load(p.read_text()))
 

@@ -34,9 +34,14 @@ test = [
     "pytest-asyncio>=0.23",
 ]
 
+[tool.setuptools.packages.find]
+include = ["garvis*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "SIM", "TID", "RUF"]
 ignore = ["E501", "B008"]
 

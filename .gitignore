@@ -7,7 +7,9 @@ digests/
 state/
 logs/
 
-# --- Python environments / caches ---
+# --- Python build artifacts / environments / caches ---
+build/
+dist/
 .venv/
 .venv-voice/
 __pycache__/

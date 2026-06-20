@@ -23,8 +23,8 @@ import json
 import os
 import subprocess
 import sys
+from datetime import UTC
 from pathlib import Path
-from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
@@ -122,7 +122,6 @@ def garvis_mark_done(title_snippet: str) -> str:
     """Mark a loop as done by fuzzy title/who match (same as voice intent).
     Returns the matched title or error.
     """
-    from .voice import state as voice_state  # reuse voice state helpers
     # Note: voice state expects VoiceConfig, but we can adapt or duplicate minimal
     # For simplicity here, direct DB update (mirrors voice/state.py)
     title = _mark_done_direct(CFG, title_snippet)
@@ -135,7 +134,7 @@ def _mark_done_direct(cfg: Config, phrase: str) -> str | None:
     db = None
     try:
         import sqlite3
-        from datetime import datetime, timezone
+        from datetime import datetime
         db_path = cfg.path("db")
         if not db_path.exists():
             return None
@@ -151,7 +150,7 @@ def _mark_done_direct(cfg: Config, phrase: str) -> str | None:
             if score > best_score:
                 best, best_score = r, score
         if best and best_score > 0:
-            now = datetime.now(timezone.utc).astimezone().isoformat()
+            now = datetime.now(UTC).astimezone().isoformat()
             db.execute("UPDATE loops SET status='done', last_action_at=? WHERE id=?", (now, best["id"]))
             db.commit()
             return best["title"]

@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from . import classify as C
 from . import digest as D
@@ -67,7 +67,7 @@ async def run(cfg: Config, send_email: bool = True, *, lookback_minutes: int | N
         val = os.environ["GARVIS_DRY_RUN"].lower() in ("1", "true", "yes", "on")
         cfg.raw["dry_run"] = val
 
-    ts = datetime.now(timezone.utc).astimezone()
+    ts = datetime.now(UTC).astimezone()
     texts_spec = cfg.raw.get("mcp_servers", {}).get("google-messages") or {}
     texts_enabled = texts_spec.get("enabled", True) if isinstance(texts_spec, dict) else True
     env = texts_spec.get("env") if isinstance(texts_spec, dict) else {}
@@ -141,7 +141,7 @@ async def run(cfg: Config, send_email: bool = True, *, lookback_minutes: int | N
         try:
             await D.email_copy(tools, cfg, ts, md)
             print("[garvis] digest emailed")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"[garvis] email failed: {e}")
 
     # 7. persist run + audit + durable state (entities + sticky loops)

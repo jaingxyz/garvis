@@ -1,6 +1,6 @@
 """Basic guard tests (example-based, per review)."""
-from garvis.guards import protected_reason
 from garvis.gather import Item
+from garvis.guards import protected_reason
 
 
 def test_protected_vip():

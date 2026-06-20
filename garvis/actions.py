@@ -29,7 +29,7 @@ async def cleanup(tools: Tools, cfg: Config, items: list[Item]) -> list[dict]:
             elif it.source == "outlook":
                 await tools.call("personal_email_delete", messageId=it.id)
             entry["performed"] = True
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             entry["error"] = str(e)
         log.append(entry)
     return log

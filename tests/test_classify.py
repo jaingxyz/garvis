@@ -1,10 +1,11 @@
 """Tests for classify (per review priority on test coverage)."""
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
+
 from garvis.classify import classify_item
-from garvis.gather import Item
 from garvis.config import Config
+from garvis.gather import Item
 
 
 @pytest.mark.asyncio
