@@ -23,7 +23,7 @@ voice = [
     "ctranslate2==4.8.0",
     "faster-whisper==1.2.1",
     "numpy==2.4.6",
-    "onnxruntime==1.26.0",
+    "onnxruntime==1.27.0",
     "PyYAML==6.0.3",
     "requests==2.34.2",
     "sounddevice==0.5.5",
