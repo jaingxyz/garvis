@@ -12,6 +12,12 @@ llm:
 # Keep this true until you trust the classification, then flip to false.
 dry_run: true
 
+# WhatsApp cleanup is an extra opt-in on top of dry_run. A WhatsApp "delete" clears a WHOLE
+# conversation from your devices (delete-for-me — it never affects the other person, and is
+# never delete-for-everyone). Even with dry_run:false, no WhatsApp chat is touched unless this
+# is true, and only PROMOTION-labeled conversations are ever eligible.
+allow_whatsapp_delete: false
+
 window_days: 3                # first run / fallback look-back window
 owner_gmail: you@example.com
 owner_outlook: you-outlook@example.com
