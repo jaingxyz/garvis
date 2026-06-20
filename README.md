@@ -1,9 +1,9 @@
 # Garvis
 
 A **local, edge-only** personal triage + chief-of-staff assistant. Garvis sweeps your
-**Gmail**, **Outlook**, and **text messages** (Google Messages) through local MCP servers,
-triages everything, cleans out the noise, hands you a prioritized briefing — and can talk
-to you out loud.
+**Gmail**, **Outlook**, **text messages** (Google Messages), and optionally **WhatsApp**
+through local MCP servers, triages everything, cleans out the noise, hands you a prioritized
+briefing — and can talk to you out loud.
 
 Everything runs on your machine: a local **Ollama** model does the judgment, local **MCP
 servers** do the I/O, and (optionally) a local **faster-whisper + `say`** voice daemon
@@ -11,7 +11,7 @@ lets you ask "Garvis, what's open?" Nothing is sent to a third-party LLM.
 
 ## What it does each run
 
-1. **Gather** new mail/texts since the last run.
+1. **Gather** new mail/texts (and WhatsApp, if enabled) since the last run.
 2. **Classify** every item — `PROMOTION` / `UPDATE` / `ACTIONABLE` / `PERSONAL` /
    `WAITING` / `CONCLUDED` / `UNSURE` — governed by your `config/rules.md`.
 3. **Clean up** — soft-delete promotions/updates/concluded threads (recoverable ~30 days),
@@ -42,8 +42,9 @@ python -m garvis.run --check                        # connectivity check
 python -m garvis.run                                # full sweep (DRY-RUN by default)
 ```
 
-You also need three local MCP servers (personal-gmail, personal-outlook, google-messages)
-cloned and built, with their paths set in `config.yaml`.
+You also need the local MCP servers it talks to — **personal-gmail**, **personal-outlook**,
+and **google-messages**, plus optional **whatsapp-mcp** — cloned and built, with their
+paths set in `config.yaml` (WhatsApp is off by default; enable it under `mcp_servers`).
 
 See **[STANDALONE.md](STANDALONE.md)** for the architecture, full setup, the voice daemon,
 and the durable-state / memory-graph design.
