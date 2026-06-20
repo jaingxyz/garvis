@@ -30,10 +30,16 @@ class Item:
     deadline: str = ""
 
 
-async def gather_gmail(tools: Tools, cfg: Config) -> list[Item]:
-    days = cfg.window_days
-    limit = cfg.scan_limits.get("gmail", 60)
-    res = await tools.call("gmail_search", query=f"newer_than:{days}d", limit=limit)
+async def gather_gmail(tools: Tools, cfg: Config, *, lookback_minutes: int | None = None) -> list[Item]:
+    if lookback_minutes:
+        # delta / incremental mode for quick back-and-forth
+        query = f"newer_than:{lookback_minutes}m"
+        limit = min(cfg.scan_limits.get("gmail", 60), 30)
+    else:
+        days = cfg.window_days
+        limit = cfg.scan_limits.get("gmail", 60)
+        query = f"newer_than:{days}d"
+    res = await tools.call("gmail_search", query=query, limit=limit)
     items = []
     for m in res.get("messages", []):
         if "SENT" in m.get("labelIds", []):
@@ -48,8 +54,8 @@ async def gather_gmail(tools: Tools, cfg: Config) -> list[Item]:
     return items
 
 
-async def gather_outlook(tools: Tools, cfg: Config) -> list[Item]:
-    limit = cfg.scan_limits.get("outlook", 60)
+async def gather_outlook(tools: Tools, cfg: Config, *, lookback_minutes: int | None = None) -> list[Item]:
+    limit = min(cfg.scan_limits.get("outlook", 60), 30) if lookback_minutes else cfg.scan_limits.get("outlook", 60)
     res = await tools.call("personal_email_list_recent", folder="inbox", limit=limit)
     items = []
     for m in res.get("messages", []):
@@ -89,6 +95,37 @@ async def gather_messages(tools: Tools, cfg: Config) -> list[Item]:
         name = c.get("name", "")
         items.append(Item(
             source="messages", id=name, subject=name,
+            sender=name, date="", snippet=c.get("snippet", ""),
+        ))
+    return items
+
+
+async def gather_whatsapp(tools: Tools, cfg: Config, *, lookback_minutes: int | None = None) -> list[Item]:
+    """WhatsApp chats via the Baileys-based whatsapp-mcp (tools prefixed whatsapp_).
+
+    The server connects lazily on this call and reads its local store; history fills in
+    over time, so an early run may see fewer chats than a long-lived daemon would.
+    """
+    limit = min(cfg.scan_limits.get("whatsapp", 20), 15) if lookback_minutes else cfg.scan_limits.get("whatsapp", 20)
+    try:
+        res = await tools.call("whatsapp_list_conversations", limit=limit)
+    except Exception as e:  # noqa: BLE001 - surfaced in the digest as "unavailable"
+        print(f"[garvis] whatsapp unavailable: {e}")
+        return []
+    if isinstance(res, dict):
+        convs = res.get("conversations", [])
+    elif isinstance(res, list):
+        convs = res
+    else:
+        print(f"[garvis] whatsapp not ready: {str(res)[:120]}")
+        return []
+    items = []
+    for c in convs:
+        if not isinstance(c, dict):
+            continue
+        name = c.get("name", "")
+        items.append(Item(
+            source="whatsapp", id=c.get("jid") or name, subject=name,
             sender=name, date="", snippet=c.get("snippet", ""),
         ))
     return items

@@ -4,6 +4,8 @@ Usage:
     python -m garvis.run                 # uses config.yaml (dry_run respected)
     python -m garvis.run --no-email      # skip emailing the digest
     python -m garvis.run --status        # print latest digest (no scan)
+    python -m garvis.run --delta         # fast recent-only sweep (quick back-and-forth)
+    python -m garvis.run --continuous    # background daemon: loop delta sweeps (pre-compute)
     python -m garvis.run --check         # connect + list MCP tools + ping LLM, then exit
     GARVIS_DRY_RUN=true python -m garvis.run   # force for this invocation (used by MCP)
 """
@@ -56,7 +58,7 @@ def _clear_messages_browser() -> None:
         pass  # no pkill (non-macOS/Linux) — nothing to do
 
 
-async def run(cfg: Config, send_email: bool = True) -> None:
+async def run(cfg: Config, send_email: bool = True, *, lookback_minutes: int | None = None) -> None:
     # Support fire-and-forget calls from the Garvis MCP server (garvis_run_sweep tool).
     # The MCP handler launches us in a subprocess and sets GARVIS_DRY_RUN so the
     # long sweep does not block the stdio transport.
@@ -77,6 +79,10 @@ async def run(cfg: Config, send_email: bool = True) -> None:
     if texts_enabled and not texts_headless:
         _clear_messages_browser()
         await asyncio.sleep(2)  # let the OS release the profile lock before relaunch
+    whatsapp_spec = cfg.raw.get("mcp_servers", {}).get("whatsapp") or {}
+    whatsapp_enabled = (
+        whatsapp_spec.get("enabled", True) if isinstance(whatsapp_spec, dict) else True
+    )
     tools = await connect(cfg)
     text_llm = build_llm(cfg)          # free-text for prioritize briefing
     json_llm = build_llm(cfg, format="json")  # structured for classify (Ollama + retries)
@@ -93,15 +99,18 @@ async def run(cfg: Config, send_email: bool = True) -> None:
     profile_ctx = store.profile_context()
 
     # 1. gather
-    gmail = await G.gather_gmail(tools, cfg)
-    outlook = await G.gather_outlook(tools, cfg)
+    print("[garvis] starting gather phase (gmail/outlook/texts/whatsapp via MCPs)...")
+    gmail = await G.gather_gmail(tools, cfg, lookback_minutes=lookback_minutes)
+    outlook = await G.gather_outlook(tools, cfg, lookback_minutes=lookback_minutes)
     texts = await G.gather_messages(tools, cfg) if texts_enabled else []
-    items = G.dedupe_threads(gmail + outlook + texts)
+    whatsapp = await G.gather_whatsapp(tools, cfg, lookback_minutes=lookback_minutes) if whatsapp_enabled else []
+    items = G.dedupe_threads(gmail + outlook + texts + whatsapp)
     texts_ok = texts_enabled and len(texts) > 0
-    print(f"[garvis] gathered {len(gmail)+len(outlook)+len(texts)} messages "
-          f"(gmail={len(gmail)} outlook={len(outlook)} texts={len(texts)}"
-          f"{'' if texts_enabled else ', disabled'}) "
+    print(f"[garvis] gathered {len(gmail)+len(outlook)+len(texts)+len(whatsapp)} messages "
+          f"(gmail={len(gmail)} outlook={len(outlook)} texts={len(texts)} whatsapp={len(whatsapp)}"
+          f"{'' if texts_enabled else ', texts disabled'}) "
           f"-> {len(items)} threads after dedupe")
+    print("[garvis] gather complete. Now thread-state checks + classify (LLM thinking)...")
 
     # 2. thread-state (only worth it for plausibly-conversational mail)
     for it in items:
@@ -109,6 +118,7 @@ async def run(cfg: Config, send_email: bool = True) -> None:
             await G.check_thread_state(tools, cfg, it)
 
     # 3. classify (use json-forced llm for reliable structured output)
+    print("[garvis] classifying items (watch for [garvis thinking] LLM logs below)...")
     for it in items:
         await C.classify_item(json_llm, cfg, rules, it, profile_ctx)
         print(f"  [{it.label:10}] {it.source}: {it.subject[:60]}")
@@ -116,6 +126,7 @@ async def run(cfg: Config, send_email: bool = True) -> None:
     # 4. prioritize into a chief-of-staff briefing (free text)
     actionable = [i for i in items if i.label in ("ACTIONABLE", "PERSONAL")]
     waiting = [i for i in items if i.label == "WAITING"]
+    print("[garvis] prioritizing with LLM (watch thinking logs)...")
     priorities = await P.prioritize(text_llm, actionable, waiting,
                                     f"{ts:%A, %B %d, %Y}", profile_ctx)
 
@@ -182,6 +193,8 @@ def main() -> None:
     ap.add_argument("--check", action="store_true", help="connectivity check only")
     ap.add_argument("--history", action="store_true", help="show run history + audit log")
     ap.add_argument("--status", action="store_true", help="print the latest digest (no scan)")
+    ap.add_argument("--delta", action="store_true", help="fast delta sweep (last ~15-30 min only, for quick back-and-forth)")
+    ap.add_argument("--continuous", action="store_true", help="background daemon: keep pulling deltas + processing with LLM so voice/requests are fast (pre-computed + deltas)")
     args = ap.parse_args()
 
     cfg = Config.load(args.config)
@@ -191,10 +204,31 @@ def main() -> None:
     if args.status:
         show_status(cfg)
         return
+    if args.continuous:
+        asyncio.run(continuous_worker(cfg))
+        return
     if args.check:
         asyncio.run(check(cfg))
     else:
-        asyncio.run(run(cfg, send_email=not args.no_email))
+        lb = 20 if args.delta else None
+        asyncio.run(run(cfg, send_email=not args.no_email, lookback_minutes=lb))
+
+
+async def continuous_worker(cfg: Config) -> None:
+    """Background worker for fast back-and-forth.
+    Periodically does small delta pulls + LLM processing.
+    Voice / --status / TUI can then rely on pre-computed loops + digest and only
+    request deltas on explicit 'update'.
+    """
+    print("[garvis continuous] starting background worker (delta every 45s)...")
+    while True:
+        try:
+            # Do a fast delta sweep (ingest + classify on recent only)
+            await run(cfg, send_email=False, lookback_minutes=20)
+            print("[garvis continuous] delta cycle done. Sleeping 45s...")
+        except Exception as e:
+            print(f"[garvis continuous] cycle error (ignored): {e}")
+        await asyncio.sleep(45)
 
 
 if __name__ == "__main__":

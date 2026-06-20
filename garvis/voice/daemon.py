@@ -45,6 +45,7 @@ def handle(cfg: VoiceConfig, stt: Transcriber, mic: Mic) -> None:
         _log(cfg, "empty transcription")
         return
     _log(cfg, f"Q: {question}")
+    _log(cfg, "routing to brain (may call LLM for thinking)...")
     reply = brain.route(cfg, question)
     _log(cfg, f"A: {reply}")
     tts.speak(cfg, reply)
