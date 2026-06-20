@@ -1,0 +1,13 @@
+# Direct deps needed to lint, test, and audit garvis in CI.
+# Runtime deps (garvis modules import these at import time, so tests need them):
+langchain>=0.3
+langchain-core>=0.3
+langchain-ollama>=0.2
+langchain-mcp-adapters>=0.1
+mcp>=1.0
+pyyaml>=6.0
+# Test + CI tooling:
+pytest>=8.0
+pytest-asyncio>=0.23
+ruff
+pip-audit
