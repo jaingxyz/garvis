@@ -2,7 +2,7 @@
 adds a few voice-only knobs (optionally overridable via config.yaml's `voice:` block)."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -55,7 +55,7 @@ class VoiceConfig:
     # should never fire mail. Turn on explicitly in config.yaml (voice.allow_voice_send).
     allow_voice_send: bool = False
 
-    def load_overrides(self) -> "VoiceConfig":
+    def load_overrides(self) -> VoiceConfig:
         cfgfile = self.root / "config.yaml"
         if not cfgfile.exists():
             return self

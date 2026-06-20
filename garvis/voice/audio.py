@@ -27,16 +27,16 @@ class Mic:
     def __init__(self, sample_rate: int = 16000, block_ms: int = 100):
         self.sr = sample_rate
         self.block = int(sample_rate * block_ms / 1000)
-        self._q: "queue.Queue[np.ndarray]" = queue.Queue()
+        self._q: queue.Queue[np.ndarray] = queue.Queue()
         self._stream = sd.InputStream(
             samplerate=sample_rate, channels=1, dtype="float32",
             blocksize=self.block, callback=self._cb,
         )
 
-    def _cb(self, indata, frames, time_info, status):  # noqa: ANN001
+    def _cb(self, indata, frames, time_info, status):
         self._q.put(indata[:, 0].copy())
 
-    def __enter__(self) -> "Mic":
+    def __enter__(self) -> Mic:
         self._stream.start()
         return self
 

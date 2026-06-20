@@ -104,8 +104,8 @@ def main() -> int:
             loops = state.open_loops(cfg)
             if loops:
                 top = loops[0]
-                title = top["title"] if isinstance(top, dict) else top["title"]
-                who = top["who"] if isinstance(top, dict) else top["who"]
+                title = top["title"]
+                who = top["who"]
                 update = f"You have {len(loops)} open or waiting items. The top one is {title or 'something'} with {who or 'someone'}."
             else:
                 update = "No open items at the moment."
@@ -132,8 +132,8 @@ def main() -> int:
         loops = state.open_loops(cfg)
         if loops:
             top = loops[0]
-            title = top["title"] if isinstance(top, dict) else top["title"]
-            who = top["who"] if isinstance(top, dict) else top["who"]
+            title = top["title"]
+            who = top["who"]
             update = f"You have {len(loops)} open or waiting items. The top one is {title or 'something'} with {who or 'someone'}."
         else:
             update = "No open items at the moment."

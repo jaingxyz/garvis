@@ -11,7 +11,6 @@ from .mcp_client import Tools
 def render(cfg: Config, ts: datetime, priorities_md: str,
            items: list[Item], cleanup_log: list[dict], texts_ok: bool) -> str:
     updates = [i for i in items if i.label == "UPDATE"]
-    waiting = [i for i in items if i.label == "WAITING"]
     review = [i for i in items if i.label == "UNSURE"]
     mode = "DRY-RUN (nothing deleted)" if cfg.dry_run else "live"
 

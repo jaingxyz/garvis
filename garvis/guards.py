@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
 from .config import Config
@@ -33,8 +33,8 @@ def minutes_old(item: Item) -> float | None:
     if dt is None:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return (datetime.now(timezone.utc) - dt).total_seconds() / 60.0
+        dt = dt.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - dt).total_seconds() / 60.0
 
 
 def looks_like_otp(item: Item) -> bool:
@@ -55,7 +55,7 @@ def protected_reason(item: Item, cfg: Config) -> str | None:
     """Return why an item is protected (must never be deleted), or None."""
     if item.source == "messages":
         return "text message"
-    if any(l in PROTECTED_LABELS for l in item.labels):
+    if any(lbl in PROTECTED_LABELS for lbl in item.labels):
         return "starred/important label"
     if item.has_attachments:
         return "has attachment (likely a document)"

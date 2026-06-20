@@ -1,10 +1,11 @@
 """Tests for prioritize (per review: mocks, sample data)."""
-import pytest
 from unittest.mock import AsyncMock
 
-from garvis.prioritize import prioritize
-from garvis.gather import Item
+import pytest
+
 from garvis.config import Config
+from garvis.gather import Item
+from garvis.prioritize import prioritize
 
 
 @pytest.mark.asyncio

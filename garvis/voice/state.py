@@ -7,7 +7,7 @@ but we ensure the tables exist so voice works even before the next sweep runs.
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .config import VoiceConfig
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS loops (
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).astimezone().isoformat()
+    return datetime.now(UTC).astimezone().isoformat()
 
 
 def _connect(cfg: VoiceConfig) -> sqlite3.Connection | None:
@@ -93,7 +93,7 @@ def snooze(cfg: VoiceConfig, phrase: str, days: int = 1) -> str | None:
     if row is None:
         db.close()
         return None
-    until = (datetime.now(timezone.utc).astimezone() + timedelta(days=days)).isoformat()
+    until = (datetime.now(UTC).astimezone() + timedelta(days=days)).isoformat()
     db.execute("UPDATE loops SET status='snoozed', snooze_until=?, last_action_at=?, "
                "updated_at=? WHERE id=?", (until, _now(), _now(), row["id"]))
     db.commit()

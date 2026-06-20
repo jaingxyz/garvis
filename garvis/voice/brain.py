@@ -133,7 +133,10 @@ def trigger_sweep(cfg: VoiceConfig) -> bool:
     subprocess.Popen(
         [str(cfg.main_python), "-m", "garvis.run", "--no-email"],
         cwd=str(cfg.root),
-        stdout=open(cfg.log_path, "a"), stderr=subprocess.STDOUT,
+        # The handle is inherited by the long-lived background process, so a
+        # context manager would close it before the child writes (SIM115 N/A).
+        stdout=open(cfg.log_path, "a"),  # noqa: SIM115
+        stderr=subprocess.STDOUT,
     )
     return True
 

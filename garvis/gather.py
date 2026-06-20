@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from datetime import UTC
 
 from .config import Config
 from .mcp_client import Tools
@@ -76,7 +77,7 @@ async def gather_messages(tools: Tools, cfg: Config) -> list[Item]:
     limit = cfg.scan_limits.get("messages", 20)
     try:
         res = await tools.call("list_conversations", limit=limit)
-    except Exception as e:  # noqa: BLE001 - surfaced in the digest as "unavailable"
+    except Exception as e:
         print(f"[garvis] texts unavailable: {e}")
         return []
     # list_conversations returns a list of {index,name,snippet,unread} dicts; during
@@ -109,7 +110,7 @@ async def gather_whatsapp(tools: Tools, cfg: Config, *, lookback_minutes: int | 
     limit = min(cfg.scan_limits.get("whatsapp", 20), 15) if lookback_minutes else cfg.scan_limits.get("whatsapp", 20)
     try:
         res = await tools.call("whatsapp_list_conversations", limit=limit)
-    except Exception as e:  # noqa: BLE001 - surfaced in the digest as "unavailable"
+    except Exception as e:
         print(f"[garvis] whatsapp unavailable: {e}")
         return []
     if isinstance(res, dict):
@@ -151,17 +152,17 @@ def dedupe_threads(items: list[Item]) -> list[Item]:
     conversationId), otherwise falls back to the normalized subject — needed because
     the Outlook MCP's list_recent does not return a conversation id.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from .guards import _parse_date
 
-    floor = datetime.min.replace(tzinfo=timezone.utc)
+    floor = datetime.min.replace(tzinfo=UTC)
 
     def when(it: Item) -> datetime:
         dt = _parse_date(it.date)
         if dt is None:
             return floor
-        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
     best: dict[tuple, Item] = {}
     for it in items:
@@ -210,5 +211,5 @@ async def check_thread_state(tools: Tools, cfg: Config, item: Item) -> None:
                     item.last_msg_text = last.get("preview", "")
                     item.owner_replied_last = any(
                         t in item.last_msg_from.lower() for t in owner_tokens)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[garvis] thread-state check failed for {item.subject!r}: {e}")
