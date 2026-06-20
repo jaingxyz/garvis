@@ -52,9 +52,11 @@ def otp_is_deletable(item: Item, cfg: Config) -> bool:
 
 
 def protected_reason(item: Item, cfg: Config) -> str | None:
-    """Return why an item is protected (must never be deleted), or None."""
-    if item.source == "messages":
-        return "text message"
+    """Return why an item is protected (must never be deleted), or None.
+
+    SMS and WhatsApp now receive full classification (PROMOTION/UPDATE etc.)
+    instead of automatic protection by source.
+    """
     if any(lbl in PROTECTED_LABELS for lbl in item.labels):
         return "starred/important label"
     if item.has_attachments:
