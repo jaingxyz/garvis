@@ -11,11 +11,16 @@ from .mcp_client import Tools
 def render(cfg: Config, ts: datetime, priorities_md: str,
            items: list[Item], cleanup_log: list[dict], texts_ok: bool) -> str:
     updates = [i for i in items if i.label == "UPDATE"]
+    waiting = [i for i in items if i.label == "WAITING"]
     review = [i for i in items if i.label == "UNSURE"]
     mode = "DRY-RUN (nothing deleted)" if cfg.dry_run else "live"
 
     out = [f"# Garvis digest — {ts:%Y-%m-%d %H:%M %Z}", f"_Mode: {mode}_", ""]
     out += ["## Your briefing", "", priorities_md, ""]
+
+    out.append("## Waiting on others (you replied — their move)")
+    out += [f"- {i.subject} — {i.sender} ({i.reason})" for i in waiting] or ["- none"]
+    out.append("")
 
     out.append("## Updates summarized")
     out += [f"- {i.summary or i.subject} ({i.source})" for i in updates] or ["- none"]
