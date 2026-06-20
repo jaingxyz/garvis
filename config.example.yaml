@@ -54,6 +54,7 @@ scan_limits:
   gmail: 60
   outlook: 60
   messages: 20
+  whatsapp: 20
 
 # Local MCP servers, launched directly over stdio. Point args at wherever you cloned
 # each server. node_bin is optional — omit it to use `node` from your PATH, or set the
@@ -74,6 +75,11 @@ mcp_servers:
     args: ["/path/to/google-messages-app/src/server.mjs"]
     env:
       GM_HEADLESS: "true"
+  whatsapp:
+    # Optional: WhatsApp as a triage source via a Baileys-based whatsapp-mcp.
+    enabled: false
+    args: ["/path/to/whatsapp-mcp/dist/index.js"]
+    env: {}
 
 paths:
   playbook: PLAYBOOK.md
@@ -88,3 +94,5 @@ paths:
 #   command_model: base.en
 #   tts_voice: Daniel
 #   wake_words: [garvis, jarvis]
+#   conversation_mode_seconds: 25   # keep listening for follow-ups after an answer
+#   allow_voice_send: false         # set true to let voice actually SEND email (outward!)

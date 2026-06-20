@@ -43,11 +43,13 @@ async def ask_json(llm: ChatOllama, system: str, user: str, max_retries: int = 2
     Falls back defensively to {"_raw": text} (never crashes the sweep).
     """
     prompt = f"{user}\n\nRespond with ONLY a valid JSON object. No other text."
+    print(f"[garvis thinking] JSON classify prompt (first 400 chars): {user[:400]}...")
     last_text = ""
     for attempt in range(max_retries + 1):
         resp = await llm.ainvoke([("system", system), ("human", prompt)])
         text = resp.content if hasattr(resp, "content") else str(resp)
         last_text = text
+        print(f"[garvis thinking] LLM JSON response (attempt {attempt}): {text[:300]}...")
         # Prefer direct parse if model respected format
         try:
             return json.loads(text.strip())
@@ -68,5 +70,8 @@ async def ask_json(llm: ChatOllama, system: str, user: str, max_retries: int = 2
 
 
 async def ask_text(llm: ChatOllama, system: str, user: str) -> str:
+    print(f"[garvis thinking] text prompt (first 400 chars): {user[:400]}...")
     resp = await llm.ainvoke([("system", system), ("human", user)])
-    return resp.content if hasattr(resp, "content") else str(resp)
+    text = resp.content if hasattr(resp, "content") else str(resp)
+    print(f"[garvis thinking] LLM text response: {text[:400]}...")
+    return text

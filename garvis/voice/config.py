@@ -51,6 +51,9 @@ class VoiceConfig:
     conversation_mode_seconds: int = 25   # listen for follow-ups after answer (0 to disable)
     proactive_check_chunks: int = 180     # ~every 5 min at default chunk size; 0 to disable nudges
     proactive_min_priority: str = "open"  # only nudge for 'open' or higher (stub for future)
+    # Outward action: let voice actually SEND email. Off by default — a misheard command
+    # should never fire mail. Turn on explicitly in config.yaml (voice.allow_voice_send).
+    allow_voice_send: bool = False
 
     def load_overrides(self) -> "VoiceConfig":
         cfgfile = self.root / "config.yaml"
@@ -65,7 +68,8 @@ class VoiceConfig:
         v = raw.get("voice", {}) or {}
         for k in ("wake_model", "command_model", "tts_voice", "tts_rate",
                   "rms_threshold", "ollama_model",
-                  "conversation_mode_seconds", "proactive_check_chunks"):
+                  "conversation_mode_seconds", "proactive_check_chunks",
+                  "allow_voice_send"):
             if k in v:
                 setattr(self, k, v[k])
         if "wake_words" in v:

@@ -8,7 +8,7 @@ local MCP servers over stdio and uses a local Ollama model for the judgment step
 ```
 run.py orchestrator (Python drives everything)
   ├─ mcp_client.py   MultiServerMCPClient → launches the local node MCP servers
-  │                  (personal-gmail, personal-outlook, google-messages) over stdio
+  │                  (personal-gmail, personal-outlook, google-messages, whatsapp) over stdio
   ├─ gather.py       pull mail/texts via MCP tools → normalized Items
   │                  + thread-state check (who sent the last message?)
   ├─ classify.py     Ollama labels each item: PROMOTION/UPDATE/ACTIONABLE/
@@ -45,8 +45,14 @@ You also need the three local MCP servers cloned and built, with their paths set
 python -m garvis.run --check       # connect to MCP servers + ping the LLM, then exit
 python -m garvis.run               # full pipeline (DRY-RUN by default — deletes nothing)
 python -m garvis.run --no-email    # full pipeline, skip emailing the digest
+python -m garvis.run --delta       # fast recent-only sweep (quick voice back-and-forth)
+python -m garvis.run --continuous  # background worker: loop delta sweeps to pre-compute
+python -m garvis.run --status      # print the latest digest (no scan)
 python -m garvis.run --history     # show run history + deletion audit log
 ```
+
+Sources: Gmail, Outlook, Google Messages, and (optional) WhatsApp — enable each under
+`mcp_servers` in `config.yaml`.
 
 ## Safety / config (`config.yaml`)
 
@@ -87,9 +93,12 @@ python3.12 -m venv .venv-voice
 ```
 
 Most questions read the cached digest + live loops instantly (offline). Saying "refresh"
-runs a live sweep in the background. "Mark … done" / "remind me … tomorrow" mutate loops
-by voice. Run it as a login agent via the bundled `garvis/voice/com.garvis.voice.plist`
-(edit the paths first).
+runs a live sweep; "mark … done" / "remind me … tomorrow" mutate loops; "read the last
+message from …" pulls a thread live. It can also **send email** by voice, but that's
+**off by default** — set `voice.allow_voice_send: true` in `config.yaml` to enable it, so
+a misheard command can never fire mail. Conversation mode keeps listening for follow-ups
+for a few seconds after each answer. Run it as a login agent via the bundled
+`garvis/voice/com.garvis.voice.plist` (edit the paths first).
 
 ## Schedule it
 
