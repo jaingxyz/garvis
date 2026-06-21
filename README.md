@@ -14,8 +14,11 @@ lets you ask "Garvis, what's open?" Nothing is sent to a third-party LLM.
 1. **Gather** new mail/texts (and WhatsApp, if enabled) since the last run.
 2. **Classify** every item — `PROMOTION` / `UPDATE` / `ACTIONABLE` / `PERSONAL` /
    `WAITING` / `CONCLUDED` / `UNSURE` — governed by your `config/rules.md`.
-3. **Clean up** — soft-delete promotions/updates/concluded threads (recoverable ~30 days),
-   guarded by deterministic protection rules so important mail is never touched.
+3. **Clean up** — soft-delete promotions/updates/concluded **email** (recoverable from Trash
+   ~30 days), guarded by deterministic protection rules so important mail is never touched.
+   WhatsApp cleanup is separate and off by default: only `PROMOTION` chats, only when
+   `allow_whatsapp_delete: true`, and it clears a **whole conversation** (delete-for-me — see
+   Safety). SMS is classified but never auto-deleted.
 4. **Prioritize** what's left into a ranked, chief-of-staff briefing.
 5. **Deliver** a dated digest to `digests/` and email a copy to you.
 
@@ -53,7 +56,11 @@ and the durable-state / memory-graph design.
 
 - **Dry-run by default** — classifies and writes the digest but deletes nothing until you
   set `dry_run: false`.
-- **Soft-delete only** — everything is recoverable from Trash for ~30 days.
+- **Email is soft-delete only** — Gmail/Outlook removals go to Trash, recoverable for ~30 days.
+- **WhatsApp is the exception** — a WhatsApp cleanup is **delete-for-me of an entire
+  conversation** and is **not recoverable** like Trash (it never affects the other person and
+  is never delete-for-everyone). It needs a second opt-in beyond `dry_run`
+  (`allow_whatsapp_delete: true`), applies only to `PROMOTION` chats, and is off by default.
 - **Protected items never touched**, and **every deletion is logged** with sender,
   subject, reason, and id.
 

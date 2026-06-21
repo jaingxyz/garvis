@@ -33,8 +33,13 @@ Out of scope:
   `*.example.yaml` templates are committed. Never commit the real files.
 - **Local data lives outside the repo.** The SQLite store (`state/garvis.db`), digests,
   and logs contain your message text in plaintext and are gitignored. Protect the host.
-- **Agentic actions are gated.** Deletes are recoverable (~30 days) and `dry_run: true`
-  is the default — nothing is deleted until you flip it off and trust the classification.
+- **Agentic actions are gated.** `dry_run: true` is the default — nothing is deleted until
+  you flip it off and trust the classification. **Email** deletes are soft (Trash,
+  recoverable ~30 days). **WhatsApp** cleanup is the heavier exception: it is
+  *delete-for-me of an entire conversation* and is **not recoverable** like Trash (it never
+  affects the other party and is never delete-for-everyone). It requires a second opt-in
+  beyond `dry_run` (`allow_whatsapp_delete: true`, off by default) and only ever touches
+  `PROMOTION` chats. **SMS** is classified but has no delete path — it is never removed.
   Voice send is off by default (`allow_voice_send: false`); enabling it lets spoken input
   send email outward.
 - **Untrusted content reaches the model.** Message bodies can attempt prompt injection.
