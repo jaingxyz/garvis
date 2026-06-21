@@ -15,7 +15,7 @@ run.py orchestrator (Python drives everything)
   │                  PERSONAL/WAITING/CONCLUDED/UNSURE  (governed by config/rules.md)
   ├─ guards.py       deterministic protection (VIP, keywords, OTP grace) — never the LLM
   ├─ prioritize.py   Ollama ranks ACTIONABLE/PERSONAL into a chief-of-staff briefing
-  ├─ actions.py      soft-delete PROMOTION/UPDATE/CONCLUDED (dry-run aware, guarded)
+  ├─ actions.py      clean up deletable items: email soft-delete + opt-in WhatsApp (guarded)
   ├─ store.py        SQLite: run history, deletion audit, sticky loops, memory graph
   └─ digest.py       render markdown digest, write to digests/, email a copy
 ```
