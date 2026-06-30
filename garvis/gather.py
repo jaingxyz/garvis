@@ -154,7 +154,7 @@ def dedupe_threads(items: list[Item]) -> list[Item]:
     """
     from datetime import datetime
 
-    from .guards import _parse_date
+    from .dates import _parse_date
 
     floor = datetime.min.replace(tzinfo=UTC)
 
