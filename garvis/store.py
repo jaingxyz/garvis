@@ -253,8 +253,8 @@ class Store:
         flip a done/snoozed loop back to open/waiting unless a genuinely NEWER inbound
         message has arrived since it was settled. This is what stops a single mis-judged
         run (e.g. a flaky Outlook thread-state search) from reopening a closed thread."""
+        from .dates import _parse_date
         from .gather import _norm_subject
-        from .guards import _parse_date
 
         def newer(a: str | None, b: str | None) -> bool:
             da, db = _parse_date(a or ""), _parse_date(b or "")

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from email.utils import parsedate_to_datetime
 
 from .config import Config
+from .dates import _parse_date
 from .gather import Item
 
 PROTECTED_LABELS = {"STARRED", "IMPORTANT"}
@@ -13,19 +13,6 @@ OTP_MARKERS = (
     "one-time code", "one time code", "verification code", "security code",
     "passcode", "otp", "2fa", "your code is", "login code", "auth code",
 )
-
-
-def _parse_date(s: str) -> datetime | None:
-    if not s:
-        return None
-    try:                                  # RFC 2822, e.g. Gmail date header
-        return parsedate_to_datetime(s)
-    except (TypeError, ValueError):
-        pass
-    try:                                  # ISO 8601, e.g. Outlook receivedDateTime
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except ValueError:
-        return None
 
 
 def minutes_old(item: Item) -> float | None:
