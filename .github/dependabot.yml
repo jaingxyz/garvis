@@ -26,6 +26,10 @@ updates:
     # or broken publish has time to be caught (supply-chain hardening).
     cooldown:
       default-days: 7
+    groups:
+      all-actions:
+        patterns:
+          - "*"
     labels:
       - dependencies
       - github-actions
