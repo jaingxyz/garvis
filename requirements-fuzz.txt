@@ -360,9 +360,9 @@ langchain-core==1.5.1 \
     #   langgraph-checkpoint
     #   langgraph-prebuilt
     #   langgraph-sdk
-langchain-mcp-adapters==0.3.0 \
-    --hash=sha256:1af511a95e028d9546502e360f95698ae8b691dbc07981fc48170c2cb1ebd7a9 \
-    --hash=sha256:fa6c9497015eb2807de5d0c341a36e1d2445cecbae1f4a24e922fc5b94f1a36c
+langchain-mcp-adapters==0.3.1 \
+    --hash=sha256:1e354d9466db9fab9e30f24419adffbd39a84229e7f452927f99ea799e1937f9 \
+    --hash=sha256:e08d4a74a0934d558ddb807ecbb8f89466c93a0d06c1fb58974b93b4703de01c
     # via -r requirements-fuzz.in
 langchain-ollama==1.1.0 \
     --hash=sha256:43ac83a6eacb0f43855810739794dd55019e0d9b17bdcf3ecb3b1991ac3b59dd \
