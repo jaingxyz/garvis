@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 voice = [
     "av==18.1.0",
-    "ctranslate2==4.8.1",
+    "ctranslate2==4.8.2",
     "faster-whisper==1.2.1",
     "numpy==2.5.2",
     "onnxruntime==1.29.0",
