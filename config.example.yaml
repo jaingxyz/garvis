@@ -19,10 +19,23 @@ dry_run: true
 allow_whatsapp_delete: false
 
 # SMS cleanup is an extra opt-in on top of dry_run. Deleting a text clears the WHOLE
-# conversation from Google Messages, though it goes to the Messages Trash (recoverable). When
-# enabled, PROMOTION / UPDATE / CONCLUDED conversations are eligible (same policy as email);
-# protection rules and the OTP grace window still apply.
+# conversation from Google Messages, though it goes to the Messages Trash (recoverable).
+# When enabled, only automated senders you have NEVER replied to are eligible: unknown
+# numbers / short codes (no saved contact name) plus the senders/patterns listed below.
+#   - PROMOTION / UPDATE / CONCLUDED / UNSURE from an unknown number: trashed on the next sweep
+#   - ACTIONABLE / PERSONAL from an unknown number: trashed after stale_notification_days
+#   - listed notification senders/patterns: trashed regardless of label
+# Saved contacts and any thread with a reply from you are never touched; protection rules
+# and the OTP grace window still apply. Checking for your reply opens the thread in the
+# Messages web UI (marking it read), so it only happens for threads about to be trashed and
+# never in dry_run — dry-run digests therefore list no text deletions.
 allow_sms_delete: false
+# Named threads that are really machine notifications (exact name, case-insensitive), and
+# regexes matched against a thread's latest text. Carrier voicemail alerts often land in a
+# thread named after your own number — a pattern catches those without naming the thread.
+sms_notification_senders: []
+sms_notification_patterns:
+  - "voice ?mail"
 
 window_days: 3                # first run / fallback look-back window
 owner_gmail: you@example.com

@@ -20,7 +20,7 @@ from . import classify as C
 from . import digest as D
 from . import gather as G
 from . import prioritize as P
-from .actions import cleanup
+from .actions import cleanup, sms_cleanup_reason
 from .config import Config
 from .llm import build_llm
 from .mcp_client import connect
@@ -117,15 +117,20 @@ async def run(cfg: Config, send_email: bool = True, *, lookback_minutes: int | N
     for it in items:
         if it.source in ("gmail", "outlook") and "Re:" in (it.subject or ""):
             await G.check_thread_state(tools, cfg, it)
-        elif G.is_unnamed_sender(it) and cfg.raw.get("allow_sms_delete", False):
-            # Unknown-number texts are only trashed if the owner never replied — look.
-            await G.check_sms_thread_state(tools, it)
 
     # 3. classify (use json-forced llm for reliable structured output)
     print("[garvis] classifying items (watch for [garvis thinking] LLM logs below)...")
     for it in items:
         await C.classify_item(json_llm, cfg, rules, it, profile_ctx)
         print(f"  [{it.label:10}] {it.source}: {it.subject[:60]}")
+
+    # 3b. SMS thread-state: a text is only trashed if the owner never replied in it, which
+    # means opening the thread in the Messages web UI (this marks it read). So look only at
+    # threads that would actually be trashed, and never in dry-run.
+    if cfg.raw.get("allow_sms_delete", False) and not cfg.dry_run:
+        for it in items:
+            if it.source == "messages" and sms_cleanup_reason(it, cfg, assume_never_replied=True):
+                await G.check_sms_thread_state(tools, it)
 
     # 4. prioritize into a chief-of-staff briefing (free text)
     actionable = [i for i in items if i.label in ("ACTIONABLE", "PERSONAL")]

@@ -108,8 +108,39 @@ async def gather_messages(tools: Tools, cfg: Config) -> list[Item]:
 
 def is_unnamed_sender(it: Item) -> bool:
     """True for a text thread whose name is a bare phone number or short code (no letters),
-    i.e. not a saved contact."""
-    return it.source == "messages" and not re.search(r"[^\W\d_]", it.subject or it.id or "")
+    i.e. not a saved contact. An empty name is *not* unnamed: it means the list scrape
+    missed the name element, and acting on name="" could hit the wrong thread."""
+    name = it.subject or it.id or ""
+    return it.source == "messages" and bool(name.strip()) and not re.search(r"[^\W\d_]", name)
+
+
+def notification_match(it: Item, cfg: Config) -> str | None:
+    """Why a text thread counts as an automated notification sender, or None.
+
+    Unnamed senders (numbers, short codes) always do. Named threads only do when the
+    owner lists them under `sms_notification_senders` (exact name, case-insensitive) or
+    the latest snippet matches one of `sms_notification_patterns` (regex, case-insensitive)
+    — e.g. carrier voicemail alerts that land in a thread named after the owner's own
+    number.
+    """
+    if it.source != "messages":
+        return None
+    if is_unnamed_sender(it):
+        return "unknown number"
+    name = (it.subject or it.id or "").strip().lower()
+    for s in cfg.raw.get("sms_notification_senders", []) or []:
+        if str(s).strip().lower() == name:
+            return f"notification sender ({s})"
+    for pat in cfg.raw.get("sms_notification_patterns", []) or []:
+        try:
+            if re.search(str(pat), it.snippet or "", re.I):
+                return f"notification pattern ({pat})"
+        except re.error:
+            print(f"[garvis] bad sms_notification_patterns entry {pat!r}; skipped")
+    return None
+
+
+SMS_THREAD_READ_LIMIT = 100
 
 
 async def check_sms_thread_state(tools: Tools, it: Item) -> None:
@@ -117,20 +148,21 @@ async def check_sms_thread_state(tools: Tools, it: Item) -> None:
 
     read_conversation returns [{from: "me"|"them", text}] oldest-first; it carries no
     timestamps. On any failure the fields stay None, which the cleanup treats as "unknown,
-    keep" — never as "not replied".
+    keep" — never as "not replied". The same applies when the read comes back empty (the
+    scraper's selectors may simply have matched nothing) and when a full page of messages
+    shows no owner reply (an older reply could sit beyond the page).
     """
     try:
-        res = await tools.call("read_conversation", name=it.id, limit=100)
+        res = await tools.call("read_conversation", name=it.id, limit=SMS_THREAD_READ_LIMIT)
     except Exception as e:
         print(f"[garvis] sms thread-state failed for {it.id!r}: {e}")
         return
     msgs = res.get("messages", res) if isinstance(res, dict) else res
-    if not isinstance(msgs, list) or not all(isinstance(m, dict) for m in msgs):
+    if not isinstance(msgs, list) or not msgs or not all(isinstance(m, dict) for m in msgs):
         return
-    if not msgs:
-        it.owner_replied = False
-        return
-    it.owner_replied = any(m.get("from") == "me" for m in msgs)
+    replied = any(m.get("from") == "me" for m in msgs)
+    if replied or len(msgs) < SMS_THREAD_READ_LIMIT:
+        it.owner_replied = replied
     last = msgs[-1]
     it.owner_replied_last = last.get("from") == "me"
     it.last_msg_from = "owner" if it.owner_replied_last else it.subject

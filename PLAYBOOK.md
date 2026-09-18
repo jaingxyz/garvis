@@ -14,9 +14,11 @@ any default judgment here.
 2. **Texts are read-only unless `allow_sms_delete: true`.** Even then, a text deletion moves
    the whole conversation to the Messages Trash, and only unknown numbers / short codes
    the owner has never replied to are eligible (notifications, promos and unplaceable
-   items at once; ACTIONABLE / PERSONAL after `stale_notification_days`). A thread with a
-   saved contact name, or one the owner has replied in, is never touched. Never delete a
-   fresh one-time code.
+   items at once; ACTIONABLE / PERSONAL after `stale_notification_days`), plus named
+   threads the owner listed as notification senders or whose latest text matches an
+   owner-supplied pattern (e.g. voicemail alerts). Any other thread with a saved contact
+   name, or one the owner has replied in, is never touched. Never delete a fresh one-time
+   code.
 3. **Never delete a protected item** (see rules.md): starred/flagged/important, VIP
    senders, protected keywords, document attachments, or threads you've replied in.
 4. **High-confidence only.** Delete a promo/update only if you are confident. If in

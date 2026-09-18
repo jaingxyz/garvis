@@ -67,8 +67,12 @@ and the durable-state / memory-graph design.
   default. Only unknown numbers and short codes (no saved contact name) that you have
   **never replied to** are eligible: promotions, updates and anything the model could not
   place go right away; ACTIONABLE / PERSONAL wait out `stale_notification_days` first.
-  Threads with a saved contact, or that you have replied in, are never auto-trashed. Fresh
-  one-time codes are always kept; expired ones are trashed even if the model was unsure.
+  Named threads are only eligible if you list them (`sms_notification_senders`) or their
+  latest text matches one of your `sms_notification_patterns` (e.g. carrier voicemail
+  alerts). Otherwise threads with a saved contact, or that you have replied in, are never
+  auto-trashed. Fresh one-time codes are always kept; expired ones are trashed even if the
+  model was unsure. Every delete result is checked, so a failed delete is logged as an
+  error, never as performed.
 - **Protected items never touched**, and **every deletion is logged** with sender,
   subject, reason, and id.
 
