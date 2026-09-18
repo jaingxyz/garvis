@@ -10,13 +10,16 @@ from .gather import Item
 
 PROTECTED_LABELS = {"STARRED", "IMPORTANT"}
 OTP_MARKERS = (
-    "one-time code", "one time code", "verification code", "security code",
+    "one-time code", "one time code", "one-time password", "one time password",
+    "verification code", "security code",
     "passcode", "otp", "2fa", "your code is", "login code", "auth code",
 )
 
 
 def minutes_old(item: Item) -> float | None:
-    dt = _parse_date(item.date)
+    # Sources without timestamps (SMS/WhatsApp) fall back to when Garvis first saw the
+    # snippet, so a one-time code ages out over successive runs instead of never expiring.
+    dt = _parse_date(item.date) or _parse_date(item.first_seen)
     if dt is None:
         return None
     if dt.tzinfo is None:
@@ -56,6 +59,12 @@ def protected_reason(item: Item, cfg: Config) -> str | None:
     for vip in cfg.raw.get("vip_senders", []) or []:
         if vip.lower() in sender:
             return f"VIP sender ({vip})"
+
+    # An expired one-time code is noise even when its wording trips a protected keyword
+    # ("one-time password" vs. the "password" keyword). Labels, attachments and VIP senders
+    # above still win; only the keyword list is bypassed.
+    if otp_is_deletable(item, cfg):
+        return None
 
     haystack = f"{item.subject} {item.snippet}".lower()
     for kw in cfg.raw.get("protected_keywords", []) or []:

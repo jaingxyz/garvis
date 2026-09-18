@@ -39,7 +39,10 @@ Out of scope:
   *delete-for-me of an entire conversation* and is **not recoverable** like Trash (it never
   affects the other party and is never delete-for-everyone). It requires a second opt-in
   beyond `dry_run` (`allow_whatsapp_delete: true`, off by default) and only ever touches
-  `PROMOTION` chats. **SMS** is classified but has no delete path — it is never removed.
+  `PROMOTION` chats. **SMS** cleanup is a separate opt-in (`allow_sms_delete: true`, off by
+  default): it moves an entire conversation to the Google Messages Trash (recoverable there),
+  and only ever touches unknown numbers / short codes the owner has never replied to —
+  saved contacts and threads with an owner reply are never auto-trashed.
   Voice send is off by default (`allow_voice_send: false`); enabling it lets spoken input
   send email outward.
 - **Untrusted content reaches the model.** Message bodies can attempt prompt injection.

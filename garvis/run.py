@@ -105,6 +105,7 @@ async def run(cfg: Config, send_email: bool = True, *, lookback_minutes: int | N
     texts = await G.gather_messages(tools, cfg) if texts_enabled else []
     whatsapp = await G.gather_whatsapp(tools, cfg, lookback_minutes=lookback_minutes) if whatsapp_enabled else []
     items = G.dedupe_threads(gmail + outlook + texts + whatsapp)
+    store.stamp_first_seen(items)   # gives undated SMS/WhatsApp items an age for the OTP guard
     texts_ok = texts_enabled and len(texts) > 0
     print(f"[garvis] gathered {len(gmail)+len(outlook)+len(texts)+len(whatsapp)} messages "
           f"(gmail={len(gmail)} outlook={len(outlook)} texts={len(texts)} whatsapp={len(whatsapp)}"
@@ -116,6 +117,9 @@ async def run(cfg: Config, send_email: bool = True, *, lookback_minutes: int | N
     for it in items:
         if it.source in ("gmail", "outlook") and "Re:" in (it.subject or ""):
             await G.check_thread_state(tools, cfg, it)
+        elif G.is_unnamed_sender(it) and cfg.raw.get("allow_sms_delete", False):
+            # Unknown-number texts are only trashed if the owner never replied — look.
+            await G.check_sms_thread_state(tools, it)
 
     # 3. classify (use json-forced llm for reliable structured output)
     print("[garvis] classifying items (watch for [garvis thinking] LLM logs below)...")

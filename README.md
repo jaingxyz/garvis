@@ -18,7 +18,8 @@ lets you ask "Garvis, what's open?" Nothing is sent to a third-party LLM.
    ~30 days), guarded by deterministic protection rules so important mail is never touched.
    WhatsApp cleanup is separate and off by default: only `PROMOTION` chats, only when
    `allow_whatsapp_delete: true`, and it clears a **whole conversation** (delete-for-me — see
-   Safety). SMS is classified but never auto-deleted.
+   Safety). SMS cleanup is also off by default: only when `allow_sms_delete: true`, it moves
+   a whole `PROMOTION` / `UPDATE` / `CONCLUDED` conversation to the Messages Trash.
 4. **Prioritize** what's left into a ranked, chief-of-staff briefing.
 5. **Deliver** a dated digest to `digests/` and email a copy to you.
 
@@ -61,6 +62,13 @@ and the durable-state / memory-graph design.
   conversation** and is **not recoverable** like Trash (it never affects the other person and
   is never delete-for-everyone). It needs a second opt-in beyond `dry_run`
   (`allow_whatsapp_delete: true`), applies only to `PROMOTION` chats, and is off by default.
+- **SMS is opt-in too** — an SMS cleanup moves an **entire conversation** to the Google
+  Messages Trash (recoverable there). It needs `allow_sms_delete: true` and is off by
+  default. Only unknown numbers and short codes (no saved contact name) that you have
+  **never replied to** are eligible: promotions, updates and anything the model could not
+  place go right away; ACTIONABLE / PERSONAL wait out `stale_notification_days` first.
+  Threads with a saved contact, or that you have replied in, are never auto-trashed. Fresh
+  one-time codes are always kept; expired ones are trashed even if the model was unsure.
 - **Protected items never touched**, and **every deletion is logged** with sender,
   subject, reason, and id.
 

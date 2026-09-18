@@ -5,6 +5,7 @@ message id, so you can review or recover even after the digest is gone.
 """
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -39,6 +40,12 @@ CREATE TABLE IF NOT EXISTS seen (
   label      TEXT,
   first_seen TEXT,
   last_run_id INTEGER
+);
+-- First sighting of a specific snippet within a thread, for sources with no timestamps
+-- (SMS/WhatsApp). Lets the OTP grace window age out a code across runs.
+CREATE TABLE IF NOT EXISTS snippet_seen (
+  key        TEXT PRIMARY KEY,   -- "<source>:<thread id>:<sha1(snippet)>"
+  first_seen TEXT
 );
 -- Durable state ("memory"): people/orgs and open loops, so Garvis isn't re-derived
 -- from scratch each run and a single bad sweep can't silently reopen a settled thread.
@@ -136,6 +143,26 @@ class Store:
             "ON CONFLICT(message_id) DO UPDATE SET label=excluded.label, "
             "last_run_id=excluded.last_run_id",
             [(it.id, it.source, it.subject, it.label, _now(), run_id) for it in items])
+        self.db.commit()
+
+    def stamp_first_seen(self, items: list) -> None:
+        """Set item.first_seen for items whose source gave no date (SMS/WhatsApp).
+
+        Keyed by the exact snippet within the thread, so a new verification code in the
+        same short-code thread starts a fresh grace window rather than inheriting the
+        thread's age.
+        """
+        now = _now()
+        for it in items:
+            if it.date or not it.snippet:
+                continue
+            key = f"{it.source}:{it.id}:{hashlib.sha1(it.snippet.encode()).hexdigest()}"
+            self.db.execute(
+                "INSERT INTO snippet_seen (key, first_seen) VALUES (?, ?) "
+                "ON CONFLICT(key) DO NOTHING", (key, now))
+            row = self.db.execute(
+                "SELECT first_seen FROM snippet_seen WHERE key=?", (key,)).fetchone()
+            it.first_seen = row["first_seen"] if row else now
         self.db.commit()
 
     def already_deleted(self, message_id: str) -> bool:

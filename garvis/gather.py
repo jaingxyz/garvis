@@ -17,9 +17,14 @@ class Item:
     sender: str
     date: str
     snippet: str
+    # When the source gives no timestamp (SMS, WhatsApp), this is the ISO time Garvis first
+    # saw this exact snippet in this thread (set by Store.stamp_first_seen); guards use it as
+    # the item's age so the OTP grace window can expire instead of protecting codes forever.
+    first_seen: str = ""
     thread_id: str = ""
     labels: list[str] = field(default_factory=list)
     owner_replied_last: bool | None = None   # set by thread-state check
+    owner_replied: bool | None = None        # SMS: has the owner ever sent in this thread
     last_msg_from: str = ""                  # who sent the latest message in the thread
     last_msg_text: str = ""                  # snippet of that latest message
     has_attachments: bool = False
@@ -99,6 +104,37 @@ async def gather_messages(tools: Tools, cfg: Config) -> list[Item]:
             sender=name, date="", snippet=c.get("snippet", ""),
         ))
     return items
+
+
+def is_unnamed_sender(it: Item) -> bool:
+    """True for a text thread whose name is a bare phone number or short code (no letters),
+    i.e. not a saved contact."""
+    return it.source == "messages" and not re.search(r"[^\W\d_]", it.subject or it.id or "")
+
+
+async def check_sms_thread_state(tools: Tools, it: Item) -> None:
+    """Fill owner_replied / owner_replied_last for a text thread from its message directions.
+
+    read_conversation returns [{from: "me"|"them", text}] oldest-first; it carries no
+    timestamps. On any failure the fields stay None, which the cleanup treats as "unknown,
+    keep" — never as "not replied".
+    """
+    try:
+        res = await tools.call("read_conversation", name=it.id, limit=100)
+    except Exception as e:
+        print(f"[garvis] sms thread-state failed for {it.id!r}: {e}")
+        return
+    msgs = res.get("messages", res) if isinstance(res, dict) else res
+    if not isinstance(msgs, list) or not all(isinstance(m, dict) for m in msgs):
+        return
+    if not msgs:
+        it.owner_replied = False
+        return
+    it.owner_replied = any(m.get("from") == "me" for m in msgs)
+    last = msgs[-1]
+    it.owner_replied_last = last.get("from") == "me"
+    it.last_msg_from = "owner" if it.owner_replied_last else it.subject
+    it.last_msg_text = str(last.get("text", ""))[:300]
 
 
 async def gather_whatsapp(tools: Tools, cfg: Config, *, lookback_minutes: int | None = None) -> list[Item]:

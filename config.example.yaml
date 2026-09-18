@@ -18,6 +18,12 @@ dry_run: true
 # is true, and only PROMOTION-labeled conversations are ever eligible.
 allow_whatsapp_delete: false
 
+# SMS cleanup is an extra opt-in on top of dry_run. Deleting a text clears the WHOLE
+# conversation from Google Messages, though it goes to the Messages Trash (recoverable). When
+# enabled, PROMOTION / UPDATE / CONCLUDED conversations are eligible (same policy as email);
+# protection rules and the OTP grace window still apply.
+allow_sms_delete: false
+
 window_days: 3                # first run / fallback look-back window
 owner_gmail: you@example.com
 owner_outlook: you-outlook@example.com
@@ -53,8 +59,17 @@ protected_keywords:
   - notary
 
 # One-time / verification codes are protected only while fresh; after this many minutes
-# they are expired noise and become deletable.
+# they are expired noise and become deletable. Email uses the message date; SMS/WhatsApp
+# carry no timestamp, so age is measured from when Garvis first saw the code (the sweep
+# that discovers it stamps the time; once that many minutes pass it is trashed).
 otp_grace_minutes: 5
+
+# Texts from unknown numbers / short codes (no saved contact name) that you have never
+# replied to are trashed once allow_sms_delete is on. Anything the model calls
+# ACTIONABLE or PERSONAL gets this many days (from when Garvis first saw it) before it is
+# treated as a stale notification and trashed too. Threads you have replied in are never
+# auto-trashed.
+stale_notification_days: 7
 
 scan_limits:
   gmail: 60
