@@ -14,6 +14,8 @@ OTP_MARKERS = (
     "verification code", "security code",
     "passcode", "otp", "2fa", "your code is", "login code", "auth code",
 )
+# Whole-word/phrase match: "otp" must not fire inside "footprint", "2fa" inside a hash, etc.
+_OTP_RE = re.compile(r"\b(?:" + "|".join(re.escape(m) for m in OTP_MARKERS) + r")\b", re.I)
 
 
 def minutes_old(item: Item) -> float | None:
@@ -28,8 +30,7 @@ def minutes_old(item: Item) -> float | None:
 
 
 def looks_like_otp(item: Item) -> bool:
-    hay = f"{item.subject} {item.snippet}".lower()
-    return any(m in hay for m in OTP_MARKERS)
+    return _OTP_RE.search(f"{item.subject} {item.snippet}") is not None
 
 
 def otp_is_deletable(item: Item, cfg: Config) -> bool:
@@ -47,6 +48,10 @@ def protected_reason(item: Item, cfg: Config) -> str | None:
     SMS and WhatsApp now receive full classification (PROMOTION/UPDATE etc.)
     instead of automatic protection by source.
     """
+    # Garvis's own digests, before anything else: their text quotes cleanup reasons and
+    # code phrases that would otherwise trip the OTP handling below.
+    if "garvis digest" in (item.subject or "").lower():
+        return "garvis digest"
     if any(lbl in PROTECTED_LABELS for lbl in item.labels):
         return "starred/important label"
     if item.has_attachments:
@@ -60,19 +65,14 @@ def protected_reason(item: Item, cfg: Config) -> str | None:
         if vip.lower() in sender:
             return f"VIP sender ({vip})"
 
-    # An expired one-time code is noise even when its wording trips a protected keyword
-    # ("one-time password" vs. the "password" keyword). Labels, attachments and VIP senders
-    # above still win; only the keyword list is bypassed.
-    if otp_is_deletable(item, cfg):
-        return None
-
     haystack = f"{item.subject} {item.snippet}".lower()
+    if otp_is_deletable(item, cfg):
+        # An expired code's own wording must not keep it alive ("one-time password" vs. the
+        # "password" keyword), so blank out just the code phrases. Every other keyword in the
+        # text ("lease", "invoice", ...) still protects it.
+        haystack = _OTP_RE.sub(" ", haystack)
     for kw in cfg.raw.get("protected_keywords", []) or []:
         # Word-boundary match so "lease" doesn't fire on "Please"/"Release".
         if re.search(rf"\b{re.escape(kw.lower())}\b", haystack):
             return f"protected keyword ({kw})"
-
-    # Garvis's own digests
-    if "garvis digest" in (item.subject or "").lower():
-        return "garvis digest"
     return None
