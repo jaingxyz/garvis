@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS seen (
 -- First sighting of a specific snippet within a thread, for sources with no timestamps
 -- (SMS/WhatsApp). Lets the OTP grace window age out a code across runs.
 CREATE TABLE IF NOT EXISTS snippet_seen (
-  key        TEXT PRIMARY KEY,   -- "<source>:<thread id>:<sha1(snippet)>"
+  key        TEXT PRIMARY KEY,   -- "<source>:<thread id>:<sha256(snippet)>"
   first_seen TEXT
 );
 -- Durable state ("memory"): people/orgs and open loops, so Garvis isn't re-derived
@@ -158,7 +158,8 @@ class Store:
         for it in items:
             if it.date or not it.snippet:
                 continue
-            key = f"{it.source}:{it.id}:{hashlib.sha1(it.snippet.encode()).hexdigest()}"
+            # sha256 only as a stable, compact key for the snippet text (not a security use).
+            key = f"{it.source}:{it.id}:{hashlib.sha256(it.snippet.encode()).hexdigest()}"
             self.db.execute(
                 "INSERT INTO snippet_seen (key, first_seen) VALUES (?, ?) "
                 "ON CONFLICT(key) DO NOTHING", (key, now))
