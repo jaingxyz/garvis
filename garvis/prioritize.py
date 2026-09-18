@@ -1,6 +1,8 @@
 """Turn the kept items into a decision-ready briefing — Garvis's core value."""
 from __future__ import annotations
 
+from langchain_ollama import ChatOllama
+
 from .gather import Item
 from .llm import ask_text
 
@@ -56,7 +58,7 @@ def _block(it: Item) -> str:
     return " | ".join(bits)
 
 
-async def prioritize(llm, actionable: list[Item], waiting: list[Item], today: str,
+async def prioritize(llm: ChatOllama, actionable: list[Item], waiting: list[Item], today: str,
                      profile: str = "") -> str:
     if not actionable and not waiting:
         return "_Nothing actionable this run._"

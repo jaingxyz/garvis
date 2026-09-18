@@ -116,6 +116,8 @@ class Store:
         cur = self.db.execute(
             "INSERT INTO runs (started_at, mode) VALUES (?, ?)", (_now(), mode))
         self.db.commit()
+        if cur.lastrowid is None:
+            raise RuntimeError("runs INSERT returned no row id")
         return cur.lastrowid
 
     def finish_run(self, run_id: int, *, scanned: int, threads: int,

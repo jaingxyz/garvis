@@ -121,7 +121,8 @@ def extract_send_params(cfg: VoiceConfig, q: str) -> dict:
             },
             timeout=30,
         )
-        return json.loads(resp.json()["message"]["content"])
+        data = json.loads(resp.json()["message"]["content"])
+        return data if isinstance(data, dict) else {}
     except (requests.RequestException, KeyError, ValueError):
         return {}
 
@@ -182,7 +183,8 @@ def _run_main_action(cfg: VoiceConfig, payload: dict) -> dict:
             input=json.dumps(payload), cwd=str(cfg.root), env=env,
             text=True, capture_output=True, timeout=60,
         )
-        return json.loads(proc.stdout.strip().splitlines()[-1])
+        data = json.loads(proc.stdout.strip().splitlines()[-1])
+        return data if isinstance(data, dict) else {}
     except (subprocess.SubprocessError, ValueError, IndexError):
         return {}
 
@@ -275,6 +277,6 @@ def answer(cfg: VoiceConfig, question: str, contact: str | None = None) -> str:
             timeout=120,
         )
         resp.raise_for_status()
-        return resp.json()["message"]["content"].strip()
+        return str(resp.json()["message"]["content"]).strip()
     except (requests.RequestException, KeyError, ValueError) as e:
         return f"I couldn't reach my language model. {type(e).__name__}."

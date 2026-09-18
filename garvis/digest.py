@@ -42,7 +42,7 @@ def render(cfg: Config, ts: datetime, priorities_md: str,
     out += [f"- {i.subject} — {i.sender} ({i.reason})" for i in review] or ["- none"]
     out.append("")
 
-    counts = {}
+    counts: dict[str, int] = {}
     for i in items:
         counts[i.source] = counts.get(i.source, 0) + 1
     out.append("## Stats")
