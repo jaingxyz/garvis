@@ -18,7 +18,7 @@ class Tools:
     def names(self) -> list[str]:
         return sorted(self.by_name)
 
-    async def call(self, tool_name: str, **kwargs) -> Any:
+    async def call(self, tool_name: str, **kwargs: Any) -> Any:
         if tool_name not in self.by_name:
             raise KeyError(f"MCP tool {tool_name!r} not found. Available: {self.names()}")
         result = await self.by_name[tool_name].ainvoke(kwargs)

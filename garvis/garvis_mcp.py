@@ -153,7 +153,7 @@ def _mark_done_direct(cfg: Config, phrase: str) -> str | None:
             now = datetime.now(UTC).astimezone().isoformat()
             db.execute("UPDATE loops SET status='done', last_action_at=? WHERE id=?", (now, best["id"]))
             db.commit()
-            return best["title"]
+            return str(best["title"])
         return None
     except Exception:
         return None

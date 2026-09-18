@@ -28,7 +28,7 @@ class Config:
 
     @property
     def llm(self) -> dict:
-        return self.raw["llm"]
+        return dict(self.raw["llm"])
 
     @property
     def window_days(self) -> int:
@@ -36,15 +36,15 @@ class Config:
 
     @property
     def owner_gmail(self) -> str:
-        return self.raw["owner_gmail"]
+        return str(self.raw["owner_gmail"])
 
     @property
     def owner_outlook(self) -> str:
-        return self.raw["owner_outlook"]
+        return str(self.raw["owner_outlook"])
 
     @property
     def scan_limits(self) -> dict:
-        return self.raw.get("scan_limits", {})
+        return dict(self.raw.get("scan_limits") or {})
 
     def server_connections(self) -> dict:
         """Build the MultiServerMCPClient connection dict from config.
@@ -65,16 +65,17 @@ class Config:
         return conns
 
     def path(self, key: str) -> Path:
-        return self.root / self.raw["paths"][key]
+        return self.root / str(self.raw["paths"][key])
 
     def read_text(self, key: str) -> str:
         return self.path(key).read_text()
 
     def read_state(self) -> dict:
         try:
-            return json.loads(self.path("state").read_text())
+            data = json.loads(self.path("state").read_text())
         except FileNotFoundError:
             return {"last_run_iso": None}
+        return data if isinstance(data, dict) else {"last_run_iso": None}
 
     def write_state(self, last_run_iso: str) -> None:
         self.path("state").write_text(

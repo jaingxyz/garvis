@@ -1,6 +1,8 @@
 """LLM classification of each gathered item, governed by config/rules.md."""
 from __future__ import annotations
 
+from langchain_ollama import ChatOllama
+
 from .config import Config
 from .gather import Item
 from .guards import otp_is_deletable, protected_reason
@@ -55,7 +57,7 @@ def _user_prompt(item: Item, rules: str) -> str:
     )
 
 
-async def classify_item(llm, cfg: Config, rules: str, item: Item,
+async def classify_item(llm: ChatOllama, cfg: Config, rules: str, item: Item,
                         profile: str = "") -> Item:
     # llm passed in; for JSON steps the caller can supply one built with format="json"
     # (see run.py). ask_json provides the retry/nudge/defensive logic regardless.

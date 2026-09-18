@@ -8,12 +8,15 @@ version = "0.1.0"
 description = "Local edge-only personal triage + voice agent (Ollama + local MCPs)"
 readme = "README.md"
 requires-python = ">=3.12"
+# Floors match what the code actually uses (LangChain 1.x message/content API,
+# langchain-mcp-adapters 0.3 tool loading). mcp is capped below 2.0 because
+# langchain-mcp-adapters 0.3.x requires mcp<2.
 dependencies = [
-    "langchain>=0.3",
-    "langchain-core>=0.3",
-    "langchain-ollama>=0.2",
-    "langchain-mcp-adapters>=0.1",
-    "mcp>=1.0",
+    "langchain>=1.3.9,<2",
+    "langchain-core>=1.3.3,<2",
+    "langchain-ollama>=1.0,<2",
+    "langchain-mcp-adapters>=0.3,<1",
+    "mcp>=1.24,<2",
     "pyyaml>=6.0",
 ]
 
@@ -32,6 +35,10 @@ voice = [
 test = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+]
+dev = [
+    "ruff",
+    "mypy",
 ]
 
 [tool.setuptools.packages.find]

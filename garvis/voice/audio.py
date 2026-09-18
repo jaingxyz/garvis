@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import queue
 from collections.abc import Iterator
+from typing import Any
 
 import numpy as np
 import sounddevice as sd
@@ -33,14 +34,14 @@ class Mic:
             blocksize=self.block, callback=self._cb,
         )
 
-    def _cb(self, indata, frames, time_info, status):
+    def _cb(self, indata: np.ndarray, frames: int, time_info: Any, status: Any) -> None:
         self._q.put(indata[:, 0].copy())
 
     def __enter__(self) -> Mic:
         self._stream.start()
         return self
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *exc: object) -> None:
         self._stream.stop()
         self._stream.close()
 

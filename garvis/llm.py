@@ -36,6 +36,34 @@ def build_llm(cfg: Config, format: str | None = None) -> ChatOllama:
     return ChatOllama(**kwargs)
 
 
+def _content_text(resp: Any) -> str:
+    """Flatten a chat response's content to plain text.
+
+    LangChain may return `content` as a string or as a list of text/content blocks;
+    join the textual parts so the JSON parsing below always sees a str.
+    """
+    content = getattr(resp, "content", resp)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and isinstance(block.get("text"), str):
+                parts.append(block["text"])
+        return "".join(parts)
+    return str(content)
+
+
+def _parse_json_object(text: str) -> dict[str, Any] | None:
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
 async def ask_json(llm: ChatOllama, system: str, user: str, max_retries: int = 2) -> dict[str, Any]:
     """Ask the model and parse a single JSON object.
 
@@ -47,21 +75,19 @@ async def ask_json(llm: ChatOllama, system: str, user: str, max_retries: int = 2
     last_text = ""
     for attempt in range(max_retries + 1):
         resp = await llm.ainvoke([("system", system), ("human", prompt)])
-        text = resp.content if hasattr(resp, "content") else str(resp)
+        text = _content_text(resp)
         last_text = text
         print(f"[garvis thinking] LLM JSON response (attempt {attempt}): {text[:300]}...")
         # Prefer direct parse if model respected format
-        try:
-            return json.loads(text.strip())
-        except json.JSONDecodeError:
-            pass
+        data = _parse_json_object(text.strip())
+        if data is not None:
+            return data
         # Fallback regex
         m = _JSON_RE.search(text)
         if m:
-            try:
-                return json.loads(m.group(0))
-            except json.JSONDecodeError:
-                pass
+            data = _parse_json_object(m.group(0))
+            if data is not None:
+                return data
         if attempt < max_retries:
             # Nudge for next attempt
             prompt = f"{user}\n\nYou MUST return ONLY valid JSON. Previous attempt was invalid."
@@ -72,6 +98,6 @@ async def ask_json(llm: ChatOllama, system: str, user: str, max_retries: int = 2
 async def ask_text(llm: ChatOllama, system: str, user: str) -> str:
     print(f"[garvis thinking] text prompt (first 400 chars): {user[:400]}...")
     resp = await llm.ainvoke([("system", system), ("human", user)])
-    text = resp.content if hasattr(resp, "content") else str(resp)
+    text = _content_text(resp)
     print(f"[garvis thinking] LLM text response: {text[:400]}...")
     return text

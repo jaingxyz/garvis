@@ -1,13 +1,15 @@
-# Direct deps needed to lint, test, and audit garvis in CI.
-# Runtime deps (garvis modules import these at import time, so tests need them):
-langchain>=0.3
-langchain-core>=0.3
-langchain-ollama>=0.2
-langchain-mcp-adapters>=0.1
-mcp>=1.0
+# Direct deps needed to lint, type-check, test, and audit garvis in CI.
+# Runtime deps (garvis modules import these at import time, so tests need them).
+# Keep these floors in sync with pyproject.toml [project.dependencies].
+langchain>=1.3.9,<2
+langchain-core>=1.3.3,<2
+langchain-ollama>=1.0,<2
+langchain-mcp-adapters>=0.3,<1
+mcp>=1.24,<2
 pyyaml>=6.0
 # Test + CI tooling:
 pytest>=8.0
 pytest-asyncio>=0.23
 ruff
+mypy
 pip-audit

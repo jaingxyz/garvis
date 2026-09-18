@@ -82,7 +82,7 @@ def mark_done(cfg: VoiceConfig, phrase: str) -> str | None:
                (_now(), _now(), row["id"]))
     db.commit()
     db.close()
-    return row["title"]
+    return str(row["title"])
 
 
 def snooze(cfg: VoiceConfig, phrase: str, days: int = 1) -> str | None:
@@ -98,4 +98,4 @@ def snooze(cfg: VoiceConfig, phrase: str, days: int = 1) -> str | None:
                "updated_at=? WHERE id=?", (until, _now(), _now(), row["id"]))
     db.commit()
     db.close()
-    return row["title"]
+    return str(row["title"])
