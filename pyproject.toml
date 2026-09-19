@@ -25,7 +25,7 @@ voice = [
     "av==18.1.0",
     "ctranslate2==4.8.2",
     "faster-whisper==1.2.1",
-    "numpy==2.5.2",
+    "numpy==2.5.3",
     "onnxruntime==1.30.0",
     "PyYAML==6.0.3",
     "requests==2.34.2",
