@@ -1,14 +1,19 @@
 """Cleanup action tests: source-specific gates, the SMS delete path, result checking."""
 from conftest import FakeTools, ago, make_cfg
 
-from garvis.actions import cleanup, sms_cleanup_reason
+from garvis.actions import cleanup, sms_cleanup_reason, sms_label_free_reason
 from garvis.gather import Item
 
 
 def _sms(label="PROMOTION", name="(555) 010-0000", snippet="Big sale this weekend!",
-         owner_replied=False, first_seen=""):
+         owner_replied=False, first_seen="", unread=None):
     return Item(source="messages", id=name, subject=name, sender=name, date="",
-                snippet=snippet, label=label, owner_replied=owner_replied, first_seen=first_seen)
+                snippet=snippet, label=label, owner_replied=owner_replied,
+                first_seen=first_seen, unread=unread)
+
+
+COMPLETED = [r"\b(was|been|is)? ?delivered\b", r"\bdelivery (is |was )?complete",
+             r"\b(repair|order|service|installation|appointment) is complete"]
 
 
 def _cfg(**raw):
@@ -63,6 +68,83 @@ async def test_sms_actionable_from_unknown_number_waits_out_stale_days():
     assert log[0]["reason"].startswith("Stale notification")
     # No first_seen at all → age unknown → not stale.
     assert await cleanup(FakeTools(), cfg, [_sms("ACTIONABLE", "(555) 010-0006", "Pay")]) == []
+
+
+async def test_completed_delivery_alert_goes_even_if_owner_replied():
+    cfg = _cfg(sms_completed_patterns=COMPLETED)
+    items = [_sms("UPDATE", "12345", "Your package was delivered.", owner_replied=True),
+             _sms("ACTIONABLE", "94079", "Your repair is complete. Need more help?",
+                  owner_replied=True),
+             # in-flight updates must NOT match
+             _sms("UPDATE", "(844) 555-0111", "Your package is out for delivery.",
+                  owner_replied=True),
+             _sms("UPDATE", "(844) 555-0112", "Arriving today by 9pm.", owner_replied=True)]
+    tools = FakeTools()
+    log = await cleanup(tools, cfg, items)
+    assert [kw["name"] for _, kw in tools.calls] == ["12345", "94079"]
+    assert log[0]["reason"].startswith("Completed delivery/service alert")
+
+
+async def test_read_and_stale_notification_goes_even_if_owner_replied():
+    cfg = _cfg(sms_read_stale_days=3)
+    old_read = _sms("ACTIONABLE", "(415) 555-0100", "See you Monday at 11:00 AM",
+                    owner_replied=True, first_seen=ago(days=5), unread=False)
+    recent_read = _sms("ACTIONABLE", "(415) 555-0101", "See you Monday",
+                       owner_replied=True, first_seen=ago(days=1), unread=False)
+    old_unread = _sms("ACTIONABLE", "(415) 555-0102", "See you Monday",
+                      owner_replied=True, first_seen=ago(days=5), unread=True)
+    unknown_read_state = _sms("ACTIONABLE", "(415) 555-0103", "See you Monday",
+                              owner_replied=True, first_seen=ago(days=5))
+    tools = FakeTools()
+    log = await cleanup(tools, cfg, [old_read, recent_read, old_unread, unknown_read_state])
+    assert [kw["name"] for _, kw in tools.calls] == ["(415) 555-0100"]
+    assert log[0]["reason"].startswith("Read notification")
+
+
+async def test_listed_business_thread_read_and_stale_goes():
+    cfg = _cfg(sms_read_stale_days=3, sms_notification_senders=["Xfinity Assistant", "Luma"])
+    items = [_sms("PROMOTION", "Xfinity Assistant", "View on your phone",
+                  owner_replied=True, first_seen=ago(days=9), unread=False),
+             # a real person, same age and read state, stays
+             _sms("PERSONAL", "Pat Partner", "ok see you", owner_replied=True,
+                  first_seen=ago(days=9), unread=False)]
+    tools = FakeTools()
+    await cleanup(tools, cfg, items)
+    assert [kw["name"] for _, kw in tools.calls] == ["Xfinity Assistant"]
+
+
+async def test_fresh_otp_still_protected_when_read_and_stale():
+    cfg = _cfg(sms_read_stale_days=3, otp_grace_minutes=5)
+    otp = _sms("UPDATE", "59872", "Only use verification code: 749835", unread=False)
+    assert await cleanup(FakeTools(), cfg, [otp]) == []   # no first_seen → age unknown → fresh
+
+
+def test_label_free_reason_covers_only_label_independent_rules():
+    cfg = _cfg(sms_read_stale_days=3, sms_completed_patterns=COMPLETED)
+    # Old code thread from last year: read + stale, no label needed.
+    old = _sms("", "12345", "Citi ID Code: 406808", first_seen=ago(days=330), unread=False)
+    assert sms_label_free_reason(old, cfg).startswith("Read notification")
+    # Completed alert, no label needed.
+    done = _sms("", "(844) 555-0100", "Your package was delivered.", unread=True)
+    assert sms_label_free_reason(done, cfg).startswith("Completed delivery")
+    # Needs a label → not label-free, so it still goes through the model.
+    plain = _sms("", "(844) 555-0101", "We have an offer for you", unread=False)
+    assert sms_label_free_reason(plain, cfg) is None
+    # A named person is never label-free eligible.
+    person = _sms("", "Pat Partner", "Your package was delivered.", unread=False)
+    assert sms_label_free_reason(person, cfg) is None
+
+
+async def test_old_code_thread_from_last_year_is_trashed():
+    """The case that prompted this: a year-old verification code, read, never revisited."""
+    cfg = _cfg(sms_read_stale_days=3, otp_grace_minutes=5)
+    old = _sms("", "Citi", "Citi ID Code: 406808 Onl", first_seen=ago(days=330), unread=False,
+               owner_replied=True)
+    old.subject = old.id = "12345"          # short code, not a saved contact
+    tools = FakeTools()
+    log = await cleanup(tools, cfg, [old])
+    assert [kw["name"] for _, kw in tools.calls] == ["12345"]
+    assert log[0]["reason"].startswith("Read notification")
 
 
 async def test_sms_named_contacts_are_never_trashed():
