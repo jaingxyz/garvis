@@ -1,6 +1,7 @@
 """Cleanup actions (soft-delete) with dry-run + safety guards."""
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .config import Config
@@ -22,21 +23,76 @@ def _expired_otp(it: Item, cfg: Config) -> bool:
     return it.label in ("UNSURE", "UPDATE") and otp_is_deletable(it, cfg)
 
 
-def _stale(it: Item, cfg: Config) -> bool:
-    """Older than stale_notification_days, measured from Item.first_seen (texts carry no
-    timestamp) — the grace period ACTIONABLE / PERSONAL notifications get before they
-    count as stale noise."""
-    days = float(cfg.raw.get("stale_notification_days", 7))
+def _older_than(it: Item, days: float) -> bool:
+    """Whether the thread's latest message is older than `days`.
+
+    Texts carry no timestamp, so age comes from Item.first_seen — when Garvis first saw
+    this exact snippet. A new message resets it, so this really means "no new message in
+    N days".
+    """
     age = minutes_old(it)
     return age is not None and age > days * 24 * 60
+
+
+def _stale(it: Item, cfg: Config) -> bool:
+    """The grace period ACTIONABLE / PERSONAL notifications get before they count as
+    stale noise."""
+    return _older_than(it, float(cfg.raw.get("stale_notification_days", 7)))
+
+
+def _read_and_stale(it: Item, cfg: Config) -> bool:
+    """A notification the owner has already read, with no new message in
+    sms_read_stale_days. Unlike the rules above this does not care whether the owner once
+    replied: an old, read alert thread is spent either way. Never true while the thread
+    has unread messages, or when the read state is unknown."""
+    return it.unread is False and _older_than(it, float(cfg.raw.get("sms_read_stale_days", 3)))
+
+
+def _completed_notification(it: Item, cfg: Config) -> str | None:
+    """Matches sms_completed_patterns: a delivery/service alert whose job is done
+    ("delivered", "repair is complete"). Patterns are written to miss in-flight updates
+    such as "out for delivery"."""
+    for pat in cfg.raw.get("sms_completed_patterns", []) or []:
+        try:
+            if re.search(str(pat), it.snippet or "", re.I):
+                return str(pat)
+        except re.error:
+            print(f"[garvis] bad sms_completed_patterns entry {pat!r}; skipped")
+    return None
+
+
+def sms_label_free_reason(it: Item, cfg: Config) -> str | None:
+    """The cleanup reasons that need neither an LLM label nor the reply check.
+
+    run.py uses this to skip both for a thread that is already condemned — which keeps a
+    large scan affordable and avoids opening (and so marking read) threads pointlessly.
+    """
+    if it.source != "messages" or not cfg.raw.get("allow_sms_delete", False):
+        return None
+    if notification_match(it, cfg) is None:
+        return None
+    done = _completed_notification(it, cfg)
+    if done:
+        return f"Completed delivery/service alert ({done})"
+    if _read_and_stale(it, cfg):
+        days = cfg.raw.get("sms_read_stale_days", 3)
+        return f"Read notification (no new message in >{days}d)"
+    return None
 
 
 def sms_cleanup_reason(it: Item, cfg: Config, *, assume_never_replied: bool = False) -> str | None:
     """Why a text thread is eligible for cleanup, or None if it must be kept.
 
-    Three cases, all requiring `allow_sms_delete`, an automated sender (unknown number, or
-    a name/pattern the owner listed as a notification source) and no owner reply in the
-    thread. Fresh one-time codes are still held back by protected_reason.
+    Everything here requires `allow_sms_delete` and an automated sender: an unknown
+    number, or a name/pattern the owner listed as a notification source. A thread with a
+    saved contact name is a person and is never touched. Fresh one-time codes are still
+    held back by protected_reason.
+
+    Two rules apply even to a thread the owner once replied in, because the thread is
+    spent either way: a completed delivery/service alert, and a read thread with no new
+    message in sms_read_stale_days. The label-based rules below still require that the
+    owner never replied.
+
     With assume_never_replied=True the reply check is skipped — used to decide whether a
     thread is even worth opening to look for a reply.
     """
@@ -48,12 +104,15 @@ def sms_cleanup_reason(it: Item, cfg: Config, *, assume_never_replied: bool = Fa
     why = notification_match(it, cfg)
     if why is None:
         return None
+    if _expired_otp(it, cfg):
+        return "Expired one-time code"
+    label_free = sms_label_free_reason(it, cfg)
+    if label_free:
+        return label_free
     # A thread the owner has replied in is a conversation, not a notification. Unknown
     # state (thread-state check failed, not run, or inconclusive) is treated the same: keep.
     if not assume_never_replied and it.owner_replied is not False:
         return None
-    if _expired_otp(it, cfg):
-        return "Expired one-time code"
     if why != "unknown number":
         # Owner-listed notification sender/pattern (e.g. voicemail alerts): goes regardless
         # of label, since the owner said this thread is machine noise.

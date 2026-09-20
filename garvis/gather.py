@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC
 
 from .config import Config
+from .dates import parse_ui_timestamp
 from .mcp_client import Tools
 
 
@@ -25,6 +26,7 @@ class Item:
     labels: list[str] = field(default_factory=list)
     owner_replied_last: bool | None = None   # set by thread-state check
     owner_replied: bool | None = None        # SMS: has the owner ever sent in this thread
+    unread: bool | None = None               # SMS: thread has unread messages (None = unknown)
     last_msg_from: str = ""                  # who sent the latest message in the thread
     last_msg_text: str = ""                  # snippet of that latest message
     has_attachments: bool = False
@@ -99,9 +101,15 @@ async def gather_messages(tools: Tools, cfg: Config) -> list[Item]:
         if not isinstance(c, dict):
             continue
         name = c.get("name", "")
+        unread = c.get("unread")
+        # The row timestamp is abbreviated by age ("9:49 PM", "Thu", "Oct 23, 2025"); when
+        # it parses, it is the thread's real age and beats the first_seen fallback.
+        seen_at = parse_ui_timestamp(str(c.get("time") or ""))
         items.append(Item(
             source="messages", id=name, subject=name,
-            sender=name, date="", snippet=c.get("snippet", ""),
+            sender=name, date=seen_at.isoformat() if seen_at else "",
+            snippet=c.get("snippet", ""),
+            unread=bool(unread) if isinstance(unread, bool) else None,
         ))
     return items
 

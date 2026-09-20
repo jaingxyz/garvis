@@ -37,6 +37,25 @@ sms_notification_senders: []
 sms_notification_patterns:
   - "voice ?mail"
 
+# A notification thread you have already READ and that has had no new message in this many
+# days is spent — trashed even if you once replied in it. A thread with unread messages is
+# never trashed, and Garvis never opens (and so never marks read) an unread thread.
+sms_read_stale_days: 3
+
+# Text threads older than this are never sent to the LLM: they can't be a fresh task and the
+# briefing only covers recent activity. They are still cleaned up by the rules above. This is
+# what keeps a deep scan (scan_limits.messages) affordable.
+sms_classify_max_age_days: 14
+
+# Delivery/service alerts whose job is finished — trashed regardless of label or age.
+# These deliberately miss in-flight updates like "out for delivery" / "arriving today".
+sms_completed_patterns:
+  - "\\b(was|been|is)? ?delivered\\b"
+  - "\\bdelivery (is |was )?complete"
+  - "\\b(repair|order|service|installation|appointment) is complete"
+  - "\\bhas been completed\\b"
+  - "\\bpicked up\\b"
+
 window_days: 3                # first run / fallback look-back window
 owner_gmail: you@example.com
 owner_outlook: you-outlook@example.com

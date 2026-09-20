@@ -20,8 +20,9 @@ from . import classify as C
 from . import digest as D
 from . import gather as G
 from . import prioritize as P
-from .actions import cleanup, sms_cleanup_reason
+from .actions import cleanup, sms_cleanup_reason, sms_label_free_reason
 from .config import Config
+from .guards import minutes_old
 from .llm import build_llm
 from .mcp_client import connect
 from .store import Store
@@ -121,15 +122,36 @@ async def run(cfg: Config, send_email: bool = True, *, lookback_minutes: int | N
     # 3. classify (use json-forced llm for reliable structured output)
     print("[garvis] classifying items (watch for [garvis thinking] LLM logs below)...")
     for it in items:
+        # A text thread a deterministic rule already condemns (completed delivery alert, or
+        # a read notification with no new message in days) needs no LLM label — skipping it
+        # keeps a large text scan affordable. It stays subject to the protection guards.
+        skip = sms_label_free_reason(it, cfg)
+        if skip:
+            it.reason = skip
+            print(f"  [{'(rule)':10}] {it.source}: {it.subject[:60]} — {skip}")
+            continue
+        # An old text thread can't be a fresh task, and the briefing only covers recent
+        # activity, so don't spend a model call on one. It stays subject to the cleanup
+        # rules and the protection guards; it just never gets a label.
+        if it.source == "messages":
+            age = minutes_old(it)
+            max_days = float(cfg.raw.get("sms_classify_max_age_days", 14))
+            if age is not None and age > max_days * 24 * 60:
+                it.reason = f"text older than {max_days:g}d; not classified"
+                continue
         await C.classify_item(json_llm, cfg, rules, it, profile_ctx)
         print(f"  [{it.label:10}] {it.source}: {it.subject[:60]}")
 
     # 3b. SMS thread-state: a text is only trashed if the owner never replied in it, which
-    # means opening the thread in the Messages web UI (this marks it read). So look only at
-    # threads that would actually be trashed, and never in dry-run.
+    # means opening the thread in the Messages web UI. Opening marks it read, so this skips
+    # threads that still have unread messages — Garvis must never mark a text read behind
+    # the owner's back, and an unread thread is never trashed anyway. Also limited to
+    # threads that would actually be trashed, and never runs in dry-run.
     if cfg.raw.get("allow_sms_delete", False) and not cfg.dry_run:
         for it in items:
-            if it.source == "messages" and sms_cleanup_reason(it, cfg, assume_never_replied=True):
+            if (it.source == "messages" and it.unread is False
+                    and not sms_label_free_reason(it, cfg)      # already condemned
+                    and sms_cleanup_reason(it, cfg, assume_never_replied=True)):
                 await G.check_sms_thread_state(tools, it)
 
     # 4. prioritize into a chief-of-staff briefing (free text)

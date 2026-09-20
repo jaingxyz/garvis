@@ -16,9 +16,12 @@ any default judgment here.
    the owner has never replied to are eligible (notifications, promos and unplaceable
    items at once; ACTIONABLE / PERSONAL after `stale_notification_days`), plus named
    threads the owner listed as notification senders or whose latest text matches an
-   owner-supplied pattern (e.g. voicemail alerts). Any other thread with a saved contact
-   name, or one the owner has replied in, is never touched. Never delete a fresh one-time
-   code.
+   owner-supplied pattern (e.g. voicemail alerts). Two rules apply to an eligible thread
+   even when the owner once replied: a completed delivery/service alert
+   (`sms_completed_patterns`), and a thread the owner has READ with no new message in
+   `sms_read_stale_days`. Any other thread with a saved contact name, or one the owner has
+   replied in, is never touched; never open an unread thread (that marks it read); never
+   delete a fresh one-time code.
 3. **Never delete a protected item** (see rules.md): starred/flagged/important, VIP
    senders, protected keywords, document attachments, or threads you've replied in.
 4. **High-confidence only.** Delete a promo/update only if you are confident. If in
