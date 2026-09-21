@@ -44,8 +44,9 @@ async def test_sms_update_and_concluded_follow_email_policy():
 
 async def test_sms_threads_owner_replied_in_are_never_trashed():
     tools = FakeTools()
-    items = [_sms("PROMOTION", "(555) 010-0001", owner_replied=True),
-             _sms("UPDATE", "12345", "shipped", owner_replied=True, first_seen=ago(days=30)),
+    # All recent: the age-based rules below must not fire, so this isolates the reply guard.
+    items = [_sms("PROMOTION", "(555) 010-0001", owner_replied=True, first_seen=ago(hours=2)),
+             _sms("UPDATE", "12345", "shipped", owner_replied=True, first_seen=ago(hours=2)),
              _sms("UNSURE", "(555) 010-0002", "hmm", owner_replied=None)]   # unknown → keep
     assert await cleanup(tools, _cfg(), items) == []
     assert tools.calls == []
@@ -145,6 +146,45 @@ async def test_old_code_thread_from_last_year_is_trashed():
     log = await cleanup(tools, cfg, [old])
     assert [kw["name"] for _, kw in tools.calls] == ["12345"]
     assert log[0]["reason"].startswith("Read notification")
+
+
+async def test_unread_notification_goes_once_really_old():
+    cfg = _cfg(sms_stale_any_days=30, sms_read_stale_days=3)
+    old_unread = _sms("", "85220", "Hi, it's AT&T. Here's the info you requested",
+                      first_seen=ago(days=34), unread=True)
+    young_unread = _sms("", "85221", "Hi, it's AT&T", first_seen=ago(days=2), unread=True,
+                        owner_replied=None)
+    tools = FakeTools()
+    log = await cleanup(tools, cfg, [old_unread, young_unread])
+    assert [kw["name"] for _, kw in tools.calls] == ["85220"]
+    assert log[0]["reason"].startswith("Stale notification")
+
+
+async def test_old_named_thread_goes_only_when_model_says_non_personal():
+    cfg = _cfg(sms_named_stale_days=30)
+    business = _sms("UPDATE", "Acme Cleaning Co", "Thank you for your business!",
+                    first_seen=ago(days=40), unread=True, owner_replied=True)
+    promo = _sms("PROMOTION", "Luma", "View on your phone", first_seen=ago(days=40))
+    friend = _sms("PERSONAL", "Sam Friend", "Glad she is better!!", first_seen=ago(days=70))
+    unsure = _sms("UNSURE", "Chris Neighbour", "Looks like some network issue",
+                  first_seen=ago(days=65))
+    unlabelled = _sms("", "Dale Carpet Fitter", "thanks", first_seen=ago(days=81))
+    recent_promo = _sms("PROMOTION", "Luma2", "View on your phone", first_seen=ago(days=5))
+    tools = FakeTools()
+    log = await cleanup(tools, cfg, [business, promo, friend, unsure, unlabelled, recent_promo])
+    assert [kw["name"] for _, kw in tools.calls] == ["Acme Cleaning Co", "Luma"]
+    assert log[0]["reason"].startswith("Non-personal thread")
+
+
+async def test_listed_personal_contacts_are_never_trashed():
+    cfg = _cfg(sms_named_stale_days=30, sms_personal_contacts=["Pat Partner", "Mum"])
+    items = [_sms("PROMOTION", "Pat Partner", "sale", first_seen=ago(days=99), unread=False),
+             # substring match covers a group thread the person appears in
+             _sms("UPDATE", "Realtor, Pat Partner", "fyi", first_seen=ago(days=99)),
+             _sms("PROMOTION", "mum", "hi", first_seen=ago(days=99))]
+    tools = FakeTools()
+    assert await cleanup(tools, cfg, items) == []
+    assert tools.calls == []
 
 
 async def test_sms_named_contacts_are_never_trashed():

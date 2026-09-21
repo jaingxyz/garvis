@@ -29,7 +29,9 @@ Even if an item looks like a promotion or update, keep it (and flag it) if ANY a
 - invoice, statement, refund, chargeback  *(receipts are NOT protected — see below)*
 - tax, IRS, W-2, 1099, audit
 - legal, contract, agreement, NDA, lawsuit, subpoena
-- security alert, suspicious sign-in, password reset
+- security alert, suspicious sign-in
+  *(password mail is NOT protected — a reset link or "your password was changed" notice is
+  spent once acted on; a code inside one is covered by the OTP grace window)*
 - offer letter, interview, salary, benefits, payroll
 - visa, passport, immigration, USCIS
 - mortgage, closing, escrow, lease, deposit

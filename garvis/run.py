@@ -133,7 +133,9 @@ async def run(cfg: Config, send_email: bool = True, *, lookback_minutes: int | N
         # An old text thread can't be a fresh task, and the briefing only covers recent
         # activity, so don't spend a model call on one. It stays subject to the cleanup
         # rules and the protection guards; it just never gets a label.
-        if it.source == "messages":
+        # Exception: a NAMED thread still needs a label at any age, because the only rule
+        # that can trash one asks the model whether it is personal.
+        if it.source == "messages" and G.is_unnamed_sender(it):
             age = minutes_old(it)
             max_days = float(cfg.raw.get("sms_classify_max_age_days", 14))
             if age is not None and age > max_days * 24 * 60:

@@ -61,6 +61,37 @@ def _completed_notification(it: Item, cfg: Config) -> str | None:
     return None
 
 
+def _is_personal_contact(it: Item, cfg: Config) -> bool:
+    """A name the owner listed as a real person — never auto-trashed, whatever the model
+    decides. Matched as a case-insensitive substring so "Alex Example" also covers the
+    group thread "Realtor, Alex Example"."""
+    name = (it.subject or it.id or "").strip().lower()
+    if not name:
+        return False
+    return any(str(p).strip().lower() in name
+               for p in cfg.raw.get("sms_personal_contacts", []) or [] if str(p).strip())
+
+
+def _named_stale_reason(it: Item, cfg: Config) -> str | None:
+    """A saved-contact thread that is old AND the model judged non-personal.
+
+    This is the only path by which a named thread is trashed without the owner listing it.
+    PERSONAL / ACTIONABLE / WAITING / UNSURE — and anything the model never labelled — are
+    kept, so a friend's thread stays even when it is ancient.
+    """
+    days = float(cfg.raw.get("sms_named_stale_days", 30))
+    if not _older_than(it, days):
+        return None
+    if it.label in ("PROMOTION", "UPDATE", "CONCLUDED"):
+        return f"Non-personal thread ({it.label.title()}, >{days:g}d)"
+    # The model is unreliable at telling a warm vendor ("Hi Gaurav, thanks so much!") from
+    # a friend, so an old named thread that is not on sms_personal_contacts is treated as
+    # spent regardless of label. That list — not the model — is what protects people.
+    if cfg.raw.get("sms_trash_unlisted_named", False):
+        return f"Unlisted contact, silent >{days:g}d"
+    return None
+
+
 def sms_label_free_reason(it: Item, cfg: Config) -> str | None:
     """The cleanup reasons that need neither an LLM label nor the reply check.
 
@@ -69,7 +100,7 @@ def sms_label_free_reason(it: Item, cfg: Config) -> str | None:
     """
     if it.source != "messages" or not cfg.raw.get("allow_sms_delete", False):
         return None
-    if notification_match(it, cfg) is None:
+    if _is_personal_contact(it, cfg) or notification_match(it, cfg) is None:
         return None
     done = _completed_notification(it, cfg)
     if done:
@@ -77,6 +108,11 @@ def sms_label_free_reason(it: Item, cfg: Config) -> str | None:
     if _read_and_stale(it, cfg):
         days = cfg.raw.get("sms_read_stale_days", 3)
         return f"Read notification (no new message in >{days}d)"
+    # An alert nobody opened for a month is junk too — being unread does not make a
+    # months-old automated notification worth keeping.
+    any_days = float(cfg.raw.get("sms_stale_any_days", 30))
+    if _older_than(it, any_days):
+        return f"Stale notification (no new message in >{any_days:g}d)"
     return None
 
 
@@ -98,12 +134,15 @@ def sms_cleanup_reason(it: Item, cfg: Config, *, assume_never_replied: bool = Fa
     """
     if it.source != "messages" or not cfg.raw.get("allow_sms_delete", False):
         return None
+    if _is_personal_contact(it, cfg):
+        return None
     # Only automated senders are ever trashed. A thread with a saved contact name is a
     # person (unless the owner explicitly listed it), and the model's label for a person's
     # thread can flip run to run — trashing their whole conversation is not worth it.
     why = notification_match(it, cfg)
     if why is None:
-        return None
+        # A saved contact: only the old + judged-non-personal rule can touch it.
+        return _named_stale_reason(it, cfg)
     if _expired_otp(it, cfg):
         return "Expired one-time code"
     label_free = sms_label_free_reason(it, cfg)

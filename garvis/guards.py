@@ -11,8 +11,9 @@ from .gather import Item
 PROTECTED_LABELS = {"STARRED", "IMPORTANT"}
 OTP_MARKERS = (
     "one-time code", "one time code", "one-time password", "one time password",
-    "verification code", "security code",
+    "verification code", "security code", "id code", "access code", "confirmation code",
     "passcode", "otp", "2fa", "your code is", "login code", "auth code",
+    "one-time pin", "one time pin", "security pin",
 )
 # Whole-word/phrase match: "otp" must not fire inside "footprint", "2fa" inside a hash, etc.
 _OTP_RE = re.compile(r"\b(?:" + "|".join(re.escape(m) for m in OTP_MARKERS) + r")\b", re.I)
@@ -65,13 +66,31 @@ def protected_reason(item: Item, cfg: Config) -> str | None:
         if vip.lower() in sender:
             return f"VIP sender ({vip})"
 
+    # Keyword protection is meant for live business (an invoice to pay, a security alert to
+    # act on). On a text thread that has been silent for months it only preserves junk — a
+    # year-old "your password was changed" SMS is not worth keeping. Labels, attachments,
+    # VIP senders and fresh one-time codes above are unaffected by this.
+    kw_days = cfg.raw.get("sms_keyword_protection_days")
+    if item.source == "messages" and kw_days is not None:
+        age = minutes_old(item)
+        if age is not None and age > float(kw_days) * 24 * 60:
+            return None
+
     haystack = f"{item.subject} {item.snippet}".lower()
     if otp_is_deletable(item, cfg):
         # An expired code's own wording must not keep it alive ("one-time password" vs. the
         # "password" keyword), so blank out just the code phrases. Every other keyword in the
         # text ("lease", "invoice", ...) still protects it.
         haystack = _OTP_RE.sub(" ", haystack)
+    # Some keywords only make sense for mail. "password" guards a reset link or a breach
+    # notice you may need; the same word in a text is almost always a spent alert ("your
+    # password was changed", "enter this code to update your user ID"), so the owner can
+    # switch it off per source rather than deleting it from protected_keywords entirely.
+    ignored = {str(k).strip().lower()
+               for k in (cfg.raw.get("sms_unprotected_keywords", []) or [])}
     for kw in cfg.raw.get("protected_keywords", []) or []:
+        if item.source == "messages" and kw.strip().lower() in ignored:
+            continue
         # Word-boundary match so "lease" doesn't fire on "Please"/"Release".
         if re.search(rf"\b{re.escape(kw.lower())}\b", haystack):
             return f"protected keyword ({kw})"
