@@ -42,6 +42,37 @@ sms_notification_patterns:
 # never trashed, and Garvis never opens (and so never marks read) an unread thread.
 sms_read_stale_days: 3
 
+# An automated thread (unknown number / short code / listed sender) with no new message in
+# this many days goes even if you never opened it — an unread alert from a month ago is junk.
+sms_stale_any_days: 30
+
+# A thread with a SAVED CONTACT name this old is trashed only when the model labels it
+# PROMOTION / UPDATE / CONCLUDED — i.e. a business or service, not a person. Anything it
+# calls PERSONAL / ACTIONABLE / WAITING / UNSURE is kept however old it is.
+sms_named_stale_days: 30
+
+# When true, ANY named thread silent for sms_named_stale_days that is not in
+# sms_personal_contacts is trashed — the list below, not the model's PERSONAL label, is
+# what keeps a person's thread. Keep this false unless that list is complete.
+sms_trash_unlisted_named: false
+
+# protected_keywords stop shielding a TEXT thread once it has been silent this long: an
+# old "your password was changed" or "invoice ready" SMS is spent. Starred/VIP/attachment
+# protection and the fresh one-time-code rule are unaffected. Unset to protect forever.
+sms_keyword_protection_days: 90
+
+# Keywords that protect MAIL but not a text. A password/security-alert SMS is a spent
+# notification — the code inside it is handled by otp_grace_minutes, not by this list.
+sms_unprotected_keywords: []
+  # - password
+  # - security alert
+
+# Real people — these threads are NEVER auto-trashed, whatever the model decides. Matched
+# as a case-insensitive substring, so a name also covers group threads it appears in.
+sms_personal_contacts: []
+  # - Alex Example
+  # - Mum
+
 # Text threads older than this are never sent to the LLM: they can't be a fresh task and the
 # briefing only covers recent activity. They are still cleaned up by the rules above. This is
 # what keeps a deep scan (scan_limits.messages) affordable.

@@ -15,7 +15,12 @@ rules exactly. Classify a single item into one of:
   social, status). Provide a one-line summary.
 - ACTIONABLE: someone is asking the owner for something, or there is a deadline the
   owner must act on. Provide the task and any deadline.
-- PERSONAL: real personal correspondence to keep.
+- PERSONAL: correspondence with someone the owner knows personally — family, friends,
+  close acquaintances. A business or service provider is NOT personal, however warm or
+  first-name the writing is: plumbers, cleaners, movers, handymen, contractors, realtors,
+  property managers, leasing offices, agencies, caregivers, salespeople and reps all fall
+  under ACTIONABLE (something is still pending for the owner), WAITING, UPDATE
+  (informational, or the job is done) or CONCLUDED.
 - WAITING: a real, still-open thread where the OWNER sent the latest reply and is
   awaiting a response they want (e.g. a request, question, or pending decision the other
   party still owes). Keep it. Not a task for the owner.

@@ -64,6 +64,49 @@ def test_expired_one_time_password_bypasses_only_its_own_wording():
     assert protected_reason(mail, cfg) == "protected keyword (password)"
 
 
+def test_id_code_counts_as_a_one_time_code():
+    for s in ("<#>Citi ID Code: 406808 Only enter online", "Your access code is 1234",
+              "Confirmation code: 55-221", "Security PIN: 9099"):
+        assert looks_like_otp(_mail(snippet=s)), s
+
+
+def test_keyword_protection_lapses_on_old_text_threads():
+    cfg = make_cfg(protected_keywords=["password", "invoice"], sms_keyword_protection_days=90)
+    old = Item(source="messages", id="41098", subject="41098", sender="41098", date="",
+               snippet="Citi: The password used to access your acct info was changed.",
+               first_seen=ago(days=333))
+    assert protected_reason(old, cfg) is None
+    # A recent one keeps its protection...
+    recent = Item(source="messages", id="41098", subject="41098", sender="41098", date="",
+                  snippet="Citi: The password used to access your acct was changed.",
+                  first_seen=ago(days=3))
+    assert protected_reason(recent, cfg) == "protected keyword (password)"
+    # ...and email is never affected by the text-only lapse.
+    mail = _mail("Invoice 42", snippet="your invoice is ready",
+                 date="Wed, 17 Sep 2025 01:00:00 -0700")
+    assert protected_reason(mail, cfg) == "protected keyword (invoice)"
+    # An attachment still protects an old text.
+    withdoc = Item(source="messages", id="9", subject="9", sender="9", date="",
+                   snippet="invoice attached", first_seen=ago(days=333), has_attachments=True)
+    assert protected_reason(withdoc, cfg) == "has attachment (likely a document)"
+
+
+def test_sms_unprotected_keywords_apply_to_texts_only():
+    cfg = make_cfg(protected_keywords=["password", "invoice"],
+                   sms_unprotected_keywords=["password"])
+    txt = Item(source="messages", id="41098", subject="41098", sender="41098", date="",
+               snippet="Citi: The password used to access your acct was changed.",
+               first_seen=ago(minutes=30))
+    assert protected_reason(txt, cfg) is None          # not shielded, at any age
+    mail = _mail("Reset your password", snippet="click to reset",
+                 date="Wed, 17 Sep 2026 01:00:00 -0700")
+    assert protected_reason(mail, cfg) == "protected keyword (password)"
+    # Other keywords still protect a text.
+    bill = Item(source="messages", id="36794", subject="36794", sender="36794", date="",
+                snippet="a tuition invoice is ready to view", first_seen=ago(days=2))
+    assert protected_reason(bill, cfg) == "protected keyword (invoice)"
+
+
 def test_own_digest_protected_before_otp_handling():
     cfg = make_cfg(otp_grace_minutes=5)
     digest = _mail("Garvis digest — 2026-09-17 09:26 PDT", "me@example.com",
