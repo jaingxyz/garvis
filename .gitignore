@@ -2,6 +2,13 @@
 config.yaml
 config/profile.yaml
 
+# --- Secrets (defense in depth) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
 # --- Personal runtime data ---
 digests/
 state/
